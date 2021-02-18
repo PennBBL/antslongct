@@ -1,10 +1,35 @@
 ############################
 # Get ANTs from DockerHub
+# February 18, 2021: DON'T HAVE ACCESS TO BINARIES
+FROM pennbbl/ants:0.0.1
+ENV ANTs_VERSION 0.0.1
+
 # Pick a specific version, once they starting versioning
-FROM cookpa/antspynet:latest
-#ENV ANTs_VERSION 0.0.1
+#FROM cookpa/antspynet:latest
 
 ############################
+# Install ANTsPyNet
+FROM python:3.8.6-buster as builder
+
+COPY requirements.txt /opt
+
+RUN apt-get update && \
+    apt-get install -y cmake=3.13.4-1 && \
+    python3 -m venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    pip install wheel && \
+    pip install --use-feature=2020-resolver --requirement /opt/requirements.txt && \
+    pip install --use-feature=2020-resolver git+https://github.com/ANTsX/ANTsPyNet.git@5f64287e693ff15b3588233b13eb065307a846e2 && \
+    git clone https://github.com/ANTsX/ANTsPy.git /opt/ANTsPy
+
+FROM python:3.8.6-slim
+
+COPY --from=builder /opt/venv /opt/venv
+
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
+
 # Switch back to root from antspyuser in base layer
 USER root
 
