@@ -21,22 +21,27 @@ sessions=`find ${InDir}/${subj}/ -type d -name "ses-*" | cut -d "-" -f 3`
 
 ### If the composite warp doesn't already exist, compute warp from group template to SST and the composite warp
 ### else, copy the composite warp into the output directory
-warpSSTToGroupTemplate=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Warp.nii.gz" -not -name "*Inverse*"`
-affSSTToGroupTemplate=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Affine.mat" -not -name "*Inverse*"`
+VersionDir=`find ${InDir} -type d -name "version*"`
+warpSSTToGroupTemplate=`find ${VersionDir}/ -name "${projectName}Template_${subj}_template*Warp.nii.gz" -not -name "*Inverse*"`
+affSSTToGroupTemplate=`find ${VersionDir}/ -name "${projectName}Template_${subj}_template*Affine.mat" -not -name "*Inverse*"`
+if [ -f ${compwarp} ]; then
+  cp ${warpSSTToGroupTemplate} ${OutDir}/${subj}_Normalizedto${projectName}Template_Warp.nii.gz;
+  cp ${affSSTToGroupTemplate} ${OutDir}/${subj}_Normalizedto${projectName}Template_Affine.mat;
+else
+  # Calculate warp from SST to group
+  antsRegistrationSyN.sh -d 3 -f ${VersionDir}/${projectName}Template_template0.nii.gz \
+    -m ${InDir}/${subj}/${subj}_template0.nii.gz \
+    -o ${OutDir}/${subj}_Normalizedto${projectName}Template_
+  warpSSTToGroupTemplate=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Warp.nii.gz" -not -name "*Inverse*"`
+  affSSTToGroupTemplate=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Affine.mat" -not -name "*Inverse*"`
+fi
+
 for ses in ${sessions}; do
-  VersionDir=`find ${InDir} -type d -name "version*"`
   compwarp="${VersionDir}/SST/${subj}_ses-${ses}_Normalizedto${projectName}TemplateCompositeWarp.nii.gz"
-  warpSubToGroupTemplate=`find ${VersionDir}/ -name "${projectName}Template_${subj}_template*Warp.nii.gz" -not -name "*Inverse*"`;
-  affSubToGroupTemplate=`find ${VersionDir}/ -name "${projectName}Template_${subj}_template*Affine.mat" -not -name "*Inverse*"`;
   if [ -f ${compwarp} ]; then
     cp ${compwarp} ${OutDir};
-    cp ${warpSubToGroupTemplate} ${OutDir}/;
-    cp ${affSubToGroupTemplate} ${OutDir}/;
   else
-    # Calculate warp from SST to group
-    antsRegistrationSyN.sh -d 3 -f ${VersionDir}/${projectName}Template_template0.nii.gz \
-      -m ${InDir}/${subj}/${subj}_template0.nii.gz \
-      -o ${OutDir}/${subj}_Normalizedto${projectName}Template_
+    # Calculate composite warp
     warpSesToSST=`find ${InDir}/${subj}/ses-${ses}/ -name "*padscale*Warp.nii.gz" -not -name "*Inverse*"`
     affSesToSST=`find ${InDir}/ -name "${subj}_ses-${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
     # Composite t1w space to group template space
@@ -54,32 +59,23 @@ done
 
 ### Warp priors in group template space to SST space #antsApplyTransforms not working/NECESSARY??
 priors=`find ${grpdir} -name "*Template_averageMask.nii.gz"`
+warpGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
+#affGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*GenericAffine.mat"`
 for prior in ${priors}; do
   tissue=`echo ${prior} | cut -d "/" -f 6 | cut -d "_" -f 1`;
   antsApplyTransforms \
     -d 3 -e 0 -i ${prior} \
-    -o [${OutDir}/${tissue}Prior_Normalizedto_${subj}_template.nii.gz, 0] \
+    -o [${OutDir}/${tissue}Prior_Normalizedto_${subj}_template.nii.gz,0] \
     -r ${sst} \
-    -t [${affSSTToGroupTemplate}, 1] \
-    -t [${warpSSTToGroupTemplate}, 1]
+    -t ${warpGroupTemplatetoSST} \
+    -t [${affSSTToGroupTemplate},1]
 done
 
-### Re-sum-to-1 priors #EDIT A BIT/NECESSARY??
-/scripts/averageMasks.py
-
-### Warp the group template mask from group template space to the SST space and #NOT TESTED
-
-### Re-binarize mask #EDIT A BIT/NECESSARY??
-/scripts/binarizeWarpedMasks.py
+### Create a mask out of all non-zero voxels of warped priors
 
 groupMaskInSST=
 
 ### Perform Atropos on SST, using custom priors #NOT TESTED
-# Q: How do I specify the prior images in -i?
-# Q: Should I be using antsAtroposN4.sh? If so, should I not run N4?
-#Atropos -d 3 -a ${sst} -i PriorProbabilityImages[6,vectorImage] \
-#  -x ${groupMaskInSST} -k Gaussian -r 0 -o [0,posterior%02d.nii.gz]
-
 antsAtroposN4.sh -d 3 -a ${sst} -x ${groupMaskInSST} -c 6 -o ${OutDir}/${subj}_ \
   -p ${OutDir}/%Prior_Normalizedto_${subj}_template.nii.gz
 
