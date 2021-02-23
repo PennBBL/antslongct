@@ -72,8 +72,8 @@ for prior in ${priors}; do
 done
 
 ### Create a mask out of all non-zero voxels of warped priors
-
-groupMaskInSST=
+/scripts/maskPriorsWarpedToSST.py ${subj}
+groupMaskInSST=`find ${OutDir} -name "${subj}_priorsMask.nii.gz"`
 
 ### Perform Atropos on SST, using custom priors #NOT TESTED
 antsAtroposN4.sh -d 3 -a ${sst} -x ${groupMaskInSST} -c 6 -o ${OutDir}/${subj}_ \

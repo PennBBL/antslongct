@@ -59,6 +59,7 @@ RUN mkdir /data/input
 RUN mkdir /data/output
 RUN mkdir /scripts
 COPY run.sh /scripts/run.sh
+COPY maskPriorsWarpedToSST.py /scripts/maskPriorsWarpedToSST.py
 RUN chmod +x /scripts/*
 
 # Set the entrypoint
