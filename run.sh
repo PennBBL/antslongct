@@ -58,7 +58,7 @@ for ses in ${sessions}; do
 done
 
 ### Warp priors in group template space to SST space #antsApplyTransforms not working/NECESSARY??
-priors=`find ${grpdir} -name "*Template_averageMask.nii.gz"`
+priors=`find ${grpdir} -name "*Template_prior.nii.gz"`
 warpGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
 #affGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*GenericAffine.mat"`
 for prior in ${priors}; do
@@ -75,20 +75,47 @@ done
 /scripts/maskPriorsWarpedToSST.py ${subj}
 groupMaskInSST=`find ${OutDir} -name "${subj}_priorsMask.nii.gz"`
 
-### Perform Atropos on SST, using custom priors #NOT TESTED
+### Copy priors to simpler name
+cp ${OutDir}/BrainstemPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior1.nii.gz
+cp ${OutDir}/CSFPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior2.nii.gz
+cp ${OutDir}/CerebellumPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior3.nii.gz
+cp ${OutDir}/GMCorticalPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior4.nii.gz
+cp ${OutDir}/GMDeepPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior5.nii.gz
+cp ${OutDir}/WMCorticalPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior6.nii.gz
+
+### Perform Atropos on SST, using custom priors #NOT TESTED (weight = .25)
+# Specifying priors not working
 antsAtroposN4.sh -d 3 -a ${sst} -x ${groupMaskInSST} -c 6 -o ${OutDir}/${subj}_ \
-  -p ${OutDir}/%Prior_Normalizedto_${subj}_template.nii.gz
+  -w .25 -p ${OutDir}/prior%d.nii.gz
+
+### Delete priors with simpler name
+rm prior*.nii.gz
 
 ### Warp posteriors in SST space to T1w (ses) space
-posteriors=
-for post in ${posteriors}; do
-
+posteriors=`find ${OutDir} -name "${subj}_SegmentationPosteriors*.nii.gz" -not -name "*PreviousIteration*"`
+for ses in ${sessions}; do
+  warpSSTtoSes=`find ${InDir}/${subj}/ses-${ses}/ -name "*InverseWarp.nii.gz"`
+  affSestoSST=`find ${InDir}/${subj}/ses-${ses}/ -name "*_desc-preproc_T1w_padscale*Affine.txt"`
+  for post in ${posteriors}; do
+    warpedname=`echo ${post} | cut -d "/" -f 4 | cut -d "_" -f 2 | cut -d "\\." -f 1`
+    warpedname=${warpedname}_Normalizedto_${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
+    antsApplyTransforms \
+      -d 3 -e 0 -i ${post} \
+      -o [${OutDir}/${warpedname},0] \
+      -r ${InDir}/${subj}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
+      -t ${warpSSTtoSes} \
+      -t [${affSestoSST},1]
+  done
 done
 
-### Use output of Atropos on the SST as priors for cortical thickness estimation (?)
-### on T1w image
+### Use output of Atropos on the SST as priors Atropos on sessions (weight = .5) #NOT TESTED
+for ses in ${sessions}; do
+  antsAtroposN4.sh -d 3 -a ${InDir}/${subj}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
+    -x ${groupMaskInSST} -c 6 -o ${OutDir}/${subj}_ -w .5 \
+    -p ${OutDir}/SegmentationPosteriors%d_Normalizedto_${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
+done
 
-### Get cortical thickness #NOT FUNCTIONING
+### Get cortical thickness (feed in hard segmentation for Atropos on session) #NOT FUNCTIONING
 for ses in ${sessions}; do
   python /opt/bin/do_antsxnet_thickness.py -a ${sst} -o ${OutDir}/${subj}_${ses}_ -t 1 ;
 done
@@ -110,7 +137,7 @@ antsApplyTransforms \
 ### Get volume of each region
 
 ### Get averge GMD of each region (Atropos image for GMCortical)
-
+#https://github.com/PennBBL/xcpEngine/blob/master/modules/gmd/gmd.mod
 
 
 

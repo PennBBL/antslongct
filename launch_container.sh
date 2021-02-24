@@ -1,5 +1,5 @@
 docker run --rm -ti --entrypoint=/bin/bash \
-  -v /Users/butellyn/Documents/ExtraLong/data/singleSubjectTemplates/antssst5/sub-113054/:/data/input/sub-113054 \
+  -v /Users/butellyn/Documents/ExtraLong/data/singleSubjectTemplates/antssst5/sub-113054:/data/input/sub-113054 \
   -v /Users/butellyn/Documents/ExtraLong/data/groupTemplates/versionSeventeen:/data/input/versionSeventeen \
   -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct:/data/output \
   pennbbl/antslongct
