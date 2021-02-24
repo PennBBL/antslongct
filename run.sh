@@ -97,12 +97,12 @@ for ses in ${sessions}; do
   warpSSTtoSes=`find ${InDir}/${subj}/ses-${ses}/ -name "*InverseWarp.nii.gz"`
   affSestoSST=`find ${InDir}/${subj}/ses-${ses}/ -name "*_desc-preproc_T1w_padscale*Affine.txt"`
   for post in ${posteriors}; do
-    warpedname=`echo ${post} | cut -d "/" -f 4 | cut -d "_" -f 2 | cut -d "\\." -f 1`
-    warpedname=${warpedname}_Normalizedto_${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
+    warpedname=`echo ${post} | cut -d "/" -f 4 | cut -d "_" -f 2 | cut -d "." -f 1`
+    warpedname=${warpedname}_Normalizedto_${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
     antsApplyTransforms \
       -d 3 -e 0 -i ${post} \
       -o [${OutDir}/${warpedname},0] \
-      -r ${InDir}/${subj}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
+      -r ${InDir}/${subj}/ses-${ses}/${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz \
       -t ${warpSSTtoSes} \
       -t [${affSestoSST},1]
   done
@@ -110,14 +110,31 @@ done
 
 ### Use output of Atropos on the SST as priors Atropos on sessions (weight = .5) #NOT TESTED
 for ses in ${sessions}; do
-  antsAtroposN4.sh -d 3 -a ${InDir}/${subj}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
-    -x ${groupMaskInSST} -c 6 -o ${OutDir}/${subj}_ -w .5 \
-    -p ${OutDir}/SegmentationPosteriors%d_Normalizedto_${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
+  /scripts/maskPriorsWarpedToSes.py ${subj} ses-${ses}
+  groupMaskInSes=${OutDir}/${subj}_ses-${ses}_priorsMask.nii.gz
+  antsAtroposN4.sh -d 3 -a ${InDir}/${subj}/ses-${ses}/${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz \
+    -x ${groupMaskInSes} -c 6 -o ${OutDir}/${subj}_ -w .5 \
+    -p ${OutDir}/SegmentationPosteriors%d_Normalizedto_${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
 done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Get cortical thickness (feed in hard segmentation for Atropos on session) #NOT FUNCTIONING
 for ses in ${sessions}; do
-  python /opt/bin/do_antsxnet_thickness.py -a ${sst} -o ${OutDir}/${subj}_${ses}_ -t 1 ;
+  python /opt/bin/do_antsxnet_thickness.py -a ${sst} -o ${OutDir}/${subj}_ses-${ses}_ -t 1 ;
 done
 
 ### Warp DKT labels from the group template space to the T1w space #NOT TESTED
