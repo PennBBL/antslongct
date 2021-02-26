@@ -117,9 +117,9 @@ for ses in ${sessions}; do
     -x ${groupMaskInSes} -c 6 -o ${OutDir}/${subj}_ses-${ses}_ -w .5 \
     -p ${OutDir}/SegmentationPosteriors%d_Normalizedto_${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
   t1w=${InDir}/${subj}/ses-${ses}/${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
-  #subpost=`find ${OutDir} -name "${subj}_ses-${ses}_SegmentationPosteriors*.nii.gz"` #https://stackoverflow.com/questions/15753701/how-can-i-pass-a-list-as-a-command-line-argument-with-argparse
   seg=${OutDir}/${subj}_ses-${ses}_Segmentation.nii.gz
-  python /opt/bin/do_antsxnet_thickness.py -a ${t1w} -s ${seg} -o ${OutDir}/${subj}_ses-${ses}_ -t 1 ;
+  sespost=`find ${OutDir} -name "${subj}_ses-${ses}_SegmentationPosteriors*.nii.gz"` 
+  python /opt/bin/do_antsxnet_thickness.py -a ${t1w} -s ${seg} -p ${sespost} -o ${OutDir}/${subj}_ses-${ses}_ -t 1 ;
 done
 
 ### Warp DKT labels from the group template space to the T1w space #NOT TESTED

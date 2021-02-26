@@ -1,7 +1,7 @@
 ############################
 # Get ANTs from DockerHub
 # February 18, 2021: DON'T HAVE ACCESS TO BINARIES
-FROM pennbbl/ants:0.0.1
+FROM pennbbl/ants:0.0.1 as antsbinaries
 ENV ANTs_VERSION 0.0.1
 
 # Pick a specific version, once they starting versioning
@@ -25,6 +25,7 @@ RUN apt-get update && \
 FROM python:3.8.6-slim
 
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=antsbinaries /opt/ants /opt/ants
 
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"

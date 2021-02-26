@@ -15,7 +15,7 @@ import tensorflow as tf
 parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--anatomical-image", help="Input anatomical image (T1w)", type=str, required=True)
 parser.add_argument("-s", "--segmentation", help="Segmentation from Atropos", type=str, required=True)
-parser.add_argument("-p", "--posteriors", help="Posteriors from Atropos on SST", type=str)
+parser.add_argument("-p", "--posteriors", help="Posteriors from Atropos on SST", nargs=6, type=str, required=True)
 parser.add_argument("-o", "--output-prefix", help="Output prefix", type=str)
 parser.add_argument("-t", "--threads", help="Number of threads in tensorflow operations. Use environment variable " \
                     "ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS to control threading in ANTs calls", type=int, default=1)
@@ -63,28 +63,28 @@ else:
 
 # If one wants cortical labels one can run the following lines
 
-print("DKT\n")
+#print("DKT\n")
 
-dkt_file = output_prefix + "Dkt.nii.gz"
-dkt = None
-if not path.exists(dkt_file):
-    print("    Calculating\n") #Brain extraction happens here
-    dkt = antspynet.desikan_killiany_tourville_labeling(t1, do_preprocessing=True,
-                                                        antsxnet_cache_directory=data_cache_dir, verbose=True)
-    ants.image_write(dkt, dkt_file)
-else:
-    print("    Reading\n")
-    dkt = ants.image_read(dkt_file)
+#dkt_file = output_prefix + "Dkt.nii.gz"
+#dkt = None
+#if not path.exists(dkt_file):
+#    print("    Calculating\n") #Brain extraction happens here
+#    dkt = antspynet.desikan_killiany_tourville_labeling(t1, do_preprocessing=True,
+#                                                        antsxnet_cache_directory=data_cache_dir, verbose=True)
+#    ants.image_write(dkt, dkt_file)
+#else:
+#    print("    Reading\n")
+#    dkt = ants.image_read(dkt_file)
 
-print("DKT Prop\n")
+#print("DKT Prop\n")
 
-dkt_prop_file = output_prefix + "DktPropagatedLabels.nii.gz"
-if not path.exists(dkt_prop_file):
-    print("    Calculating\n")
-    dkt_mask = ants.threshold_image(dkt, 1000, 3000, 1, 0)
-    dkt = dkt_mask * dkt
-    ants_tmp = ants.threshold_image(kk, 0, 0, 0, 1)
-    ants_dkt = ants.iMath(ants_tmp, "PropagateLabelsThroughMask", ants_tmp * dkt)
-    ants.image_write(ants_dkt, output_prefix + "DktPropagatedLabels.nii.gz")
+#dkt_prop_file = output_prefix + "DktPropagatedLabels.nii.gz"
+#if not path.exists(dkt_prop_file):
+#    print("    Calculating\n")
+#    dkt_mask = ants.threshold_image(dkt, 1000, 3000, 1, 0)
+#    dkt = dkt_mask * dkt
+#    ants_tmp = ants.threshold_image(kk, 0, 0, 0, 1)
+#    ants_dkt = ants.iMath(ants_tmp, "PropagateLabelsThroughMask", ants_tmp * dkt)
+#    ants.image_write(ants_dkt, output_prefix + "DktPropagatedLabels.nii.gz")
 #
 os.system("cp -r /home/antspyuser/ /data/output/")
