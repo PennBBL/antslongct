@@ -72,7 +72,7 @@ for prior in ${priors}; do
 done
 
 ### Create a mask out of all non-zero voxels of warped priors
-/scripts/maskPriorsWarpedToSST.py ${subj}
+python /scripts/maskPriorsWarpedToSST.py ${subj}
 groupMaskInSST=`find ${OutDir} -name "${subj}_priorsMask.nii.gz"`
 
 ### Copy priors to simpler name
@@ -109,32 +109,17 @@ for ses in ${sessions}; do
 done
 
 ### Use output of Atropos on the SST as priors Atropos on sessions (weight = .5) #NOT TESTED
-for ses in ${sessions}; do
-  /scripts/maskPriorsWarpedToSes.py ${subj} ses-${ses}
-  groupMaskInSes=${OutDir}/${subj}_ses-${ses}_priorsMask.nii.gz
-  antsAtroposN4.sh -d 3 -a ${InDir}/${subj}/ses-${ses}/${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz \
-    -x ${groupMaskInSes} -c 6 -o ${OutDir}/${subj}_ -w .5 \
-    -p ${OutDir}/SegmentationPosteriors%d_Normalizedto_${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
-done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ### Get cortical thickness (feed in hard segmentation for Atropos on session) #NOT FUNCTIONING
 for ses in ${sessions}; do
-  python /opt/bin/do_antsxnet_thickness.py -a ${sst} -o ${OutDir}/${subj}_ses-${ses}_ -t 1 ;
+  python /scripts/maskPriorsWarpedToSes.py ${subj} ses-${ses}
+  groupMaskInSes=${OutDir}/${subj}_ses-${ses}_priorsMask.nii.gz
+  antsAtroposN4.sh -d 3 -a ${InDir}/${subj}/ses-${ses}/${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz \
+    -x ${groupMaskInSes} -c 6 -o ${OutDir}/${subj}_ses-${ses}_ -w .5 \
+    -p ${OutDir}/SegmentationPosteriors%d_Normalizedto_${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
+  t1w=${InDir}/${subj}/ses-${ses}/${subj}_ses-${ses}_desc-preproc_T1w_padscale.nii.gz
+  #subpost=`find ${OutDir} -name "${subj}_ses-${ses}_SegmentationPosteriors*.nii.gz"` #https://stackoverflow.com/questions/15753701/how-can-i-pass-a-list-as-a-command-line-argument-with-argparse
+  seg=${OutDir}/${subj}_ses-${ses}_Segmentation.nii.gz
+  python /opt/bin/do_antsxnet_thickness.py -a ${t1w} -s ${seg} -o ${OutDir}/${subj}_ses-${ses}_ -t 1 ;
 done
 
 ### Warp DKT labels from the group template space to the T1w space #NOT TESTED

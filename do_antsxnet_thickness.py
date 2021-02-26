@@ -14,6 +14,8 @@ import tensorflow as tf
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--anatomical-image", help="Input anatomical image (T1w)", type=str, required=True)
+parser.add_argument("-s", "--segmentation", help="Segmentation from Atropos", type=str, required=True)
+parser.add_argument("-p", "--posteriors", help="Posteriors from Atropos on SST", type=str)
 parser.add_argument("-o", "--output-prefix", help="Output prefix", type=str)
 parser.add_argument("-t", "--threads", help="Number of threads in tensorflow operations. Use environment variable " \
                     "ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS to control threading in ANTs calls", type=int, default=1)
@@ -21,6 +23,8 @@ args = parser.parse_args()
 
 # Internal variables for args
 t1_file = args.anatomical_image #t1_file="/data/input/sub-96902_template0.nii.gz"
+segmentation = args.segmentation
+posteriors = args.posteriors
 output_prefix = args.output_prefix #output_prefix="sub-96902_"
 threads = args.threads #threads=1
 
@@ -35,6 +39,7 @@ session = tf.compat.v1.Session(config=config) #2020-12-11 19:27:24.883689: W ten
 tf.compat.v1.keras.backend.set_session(session)
 
 t1 = ants.image_read(t1_file)
+atropos_segmentation = ants.image_read(segmentation)
 
 print("Atropos and KellyKapowski")
 
@@ -42,10 +47,10 @@ kk_file = output_prefix + "CorticalThickness.nii.gz"
 kk = None
 if not path.exists(kk_file):
     print("    Atropos:  calculating\n")
-    atropos = antspynet.deep_atropos(t1, do_preprocessing=True,
-                                     antsxnet_cache_directory=data_cache_dir, verbose=True)
-    atropos_segmentation = atropos['segmentation_image']
-    kk_segmentation = atropos_segmentation # Combine white matter and deep gray matter
+    #atropos = antspynet.deep_atropos(t1, do_preprocessing=True,
+    #                                 antsxnet_cache_directory=data_cache_dir, verbose=True)
+    #atropos_segmentation = atropos['segmentation_image']
+    kk_segmentation = atropos_segmentation # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
     kk_segmentation[kk_segmentation == 4] = 3
     kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
     print("    KellyKapowski:  calculating\n")
