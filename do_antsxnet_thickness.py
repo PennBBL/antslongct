@@ -1,7 +1,9 @@
 import ants
-import antspynet
+import antspynet #not importing?
 import argparse
 import sys
+import nibabel as nib
+import numpy as np
 
 import os.path
 from os import path
@@ -22,10 +24,14 @@ parser.add_argument("-t", "--threads", help="Number of threads in tensorflow ope
 args = parser.parse_args()
 
 # Internal variables for args
-t1_file = args.anatomical_image #t1_file="/data/input/sub-96902_template0.nii.gz"
-segmentation = args.segmentation
+t1_file = args.anatomical_image #t1_file='/data/input/sub-113054/ses-PNC1/sub-113054_ses-PNC1_desc-preproc_T1w_padscale.nii.gz'
+segmentation = args.segmentation #segmentation='/data/output/sub-113054_ses-PNC1_Segmentation.nii.gz'
 posteriors = args.posteriors
-output_prefix = args.output_prefix #output_prefix="sub-96902_"
+# posteriors = ['/data/output/sub-113054_ses-PNC1_SegmentationPosteriors1.nii.gz',
+# '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors2.nii.gz', '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors3.nii.gz',
+# '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors4.nii.gz', '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors5.nii.gz',
+# '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors6.nii.gz']
+output_prefix = args.output_prefix #output_prefix='/data/output/ses-PNC1/sub-113054_ses-PNC1_'
 threads = args.threads #threads=1
 
 # Cache data location. Data is stored inside the container to avoid downloads at run time
@@ -39,23 +45,47 @@ session = tf.compat.v1.Session(config=config) #2020-12-11 19:27:24.883689: W ten
 tf.compat.v1.keras.backend.set_session(session)
 
 t1 = ants.image_read(t1_file)
+
+# Recode values in segmentation image to match ANTs default
+seg_img = nib.load(segmentation)
+seg_array = seg_img.get_fdata()
+seg_array = seg_array + 10
+seg_array[seg_array == 10] = 0
+seg_array[seg_array == 11] = 5
+seg_array[seg_array == 12] = 1
+seg_array[seg_array == 13] = 6
+seg_array[seg_array == 14] = 2
+seg_array[seg_array == 15] = 4
+seg_array[seg_array == 16] = 3
+seg_img = nib.Nifti1Image(seg_array, affine=seg_img.affine)
+seg_img.to_filename(segmentation)
+
+# Read in the recoded segmentation image
 atropos_segmentation = ants.image_read(segmentation)
 
-print("Atropos and KellyKapowski")
+print("KellyKapowski")
 
 kk_file = output_prefix + "CorticalThickness.nii.gz"
 kk = None
 if not path.exists(kk_file):
-    print("    Atropos:  calculating\n")
+    #print("    Atropos:  calculating\n")
     #atropos = antspynet.deep_atropos(t1, do_preprocessing=True,
     #                                 antsxnet_cache_directory=data_cache_dir, verbose=True)
     #atropos_segmentation = atropos['segmentation_image']
     kk_segmentation = atropos_segmentation # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
+    #kk_segmentation[kk_segmentation == 4] = 3 # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
     kk_segmentation[kk_segmentation == 4] = 3
-    kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
+    #kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
+    wm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors6.nii.gz' in s][0])
+    dgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors5.nii.gz' in s][0])
+    kk_white_matter = wm_prob + dgm_prob
+    cgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors4.nii.gz' in s][0])
+    #kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
     print("    KellyKapowski:  calculating\n")
-    kk = ants.kelly_kapowski(s=kk_segmentation, g=atropos['probability_images'][2],
-                             w=kk_white_matter, its=45, r=0.025, m=1.5, t=10, x=0, verbose=1)
+    kk = ants.kelly_kapowski(s=kk_segmentation, g=cgm_prob, w=kk_white_matter,
+        its=45, r=0.025, m=1.5, t=10, x=0, verbose=1)
+    #kk = ants.kelly_kapowski(s=kk_segmentation, g=atropos['probability_images'][2],
+    #                         w=kk_white_matter, its=45, r=0.025, m=1.5, t=10, x=0, verbose=1)
     ants.image_write(kk, kk_file)
 else:
     print("    Reading\n")
