@@ -1,7 +1,7 @@
 docker run --rm -ti --entrypoint=/bin/bash \
   -v /Users/butellyn/Documents/ExtraLong/data/singleSubjectTemplates/antssst5/sub-113054:/data/input/sub-113054 \
-  -v /Users/butellyn/Documents/ExtraLong/data/groupTemplates/versionSeventeen:/data/input/versionSeventeen \
-  -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct/sub-113054:/data/output \
+  -v /Users/butellyn/Documents/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors \
+  -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct2/sub-113054:/data/output \
   pennbbl/antslongct
 #sub-113054 will need to be created in the python script
 

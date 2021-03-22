@@ -67,29 +67,29 @@ print("KellyKapowski")
 
 kk_file = output_prefix + "CorticalThickness.nii.gz"
 kk = None
-if not path.exists(kk_file):
+#if not path.exists(kk_file):
     #print("    Atropos:  calculating\n")
     #atropos = antspynet.deep_atropos(t1, do_preprocessing=True,
     #                                 antsxnet_cache_directory=data_cache_dir, verbose=True)
     #atropos_segmentation = atropos['segmentation_image']
-    kk_segmentation = atropos_segmentation # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
+kk_segmentation = atropos_segmentation # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
     #kk_segmentation[kk_segmentation == 4] = 3 # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
-    kk_segmentation[kk_segmentation == 4] = 3
+kk_segmentation[kk_segmentation == 4] = 3
     #kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
-    wm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors6.nii.gz' in s][0])
-    dgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors5.nii.gz' in s][0])
-    kk_white_matter = wm_prob + dgm_prob
-    cgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors4.nii.gz' in s][0])
+wm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors6.nii.gz' in s][0])
+dgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors5.nii.gz' in s][0])
+kk_white_matter = wm_prob + dgm_prob
+cgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors4.nii.gz' in s][0])
     #kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
-    print("    KellyKapowski:  calculating\n")
-    kk = ants.kelly_kapowski(s=kk_segmentation, g=cgm_prob, w=kk_white_matter,
-        its=45, r=0.025, m=1.5, t=10, x=0, verbose=1)
+print("    KellyKapowski:  calculating\n")
+kk = ants.kelly_kapowski(s=kk_segmentation, g=cgm_prob, w=kk_white_matter,
+    its=45, r=0.025, m=1.5, t=10, x=0, verbose=1)
     #kk = ants.kelly_kapowski(s=kk_segmentation, g=atropos['probability_images'][2],
     #                         w=kk_white_matter, its=45, r=0.025, m=1.5, t=10, x=0, verbose=1)
-    ants.image_write(kk, kk_file)
-else:
-    print("    Reading\n")
-    kk = ants.image_read(kk_file)
+ants.image_write(kk, kk_file)
+#else:
+#    print("    Cortical thickness image already exists")
+    #kk = ants.image_read(kk_file)
 
 # If one wants cortical labels one can run the following lines
 
