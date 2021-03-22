@@ -25,12 +25,12 @@ args = parser.parse_args()
 
 # Internal variables for args
 t1_file = args.anatomical_image #t1_file='/data/input/sub-113054/ses-PNC1/sub-113054_ses-PNC1_desc-preproc_T1w_padscale.nii.gz'
-segmentation = args.segmentation #segmentation='/data/output/sub-113054_ses-PNC1_Segmentation.nii.gz'
+segmentation = args.segmentation #segmentation='/data/output/ses-PNC1/sub-113054_ses-PNC1_Segmentation.nii.gz'
 posteriors = args.posteriors
-# posteriors = ['/data/output/sub-113054_ses-PNC1_SegmentationPosteriors1.nii.gz',
-# '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors2.nii.gz', '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors3.nii.gz',
-# '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors4.nii.gz', '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors5.nii.gz',
-# '/data/output/sub-113054_ses-PNC1_SegmentationPosteriors6.nii.gz']
+# posteriors = ['/data/output/ses-PNC1/sub-113054_ses-PNC1_SegmentationPosteriors1.nii.gz',
+# '/data/output/ses-PNC1/sub-113054_ses-PNC1_SegmentationPosteriors2.nii.gz', '/data/output/ses-PNC1/sub-113054_ses-PNC1_SegmentationPosteriors3.nii.gz',
+# '/data/output/ses-PNC1/sub-113054_ses-PNC1_SegmentationPosteriors4.nii.gz', '/data/output/ses-PNC1/sub-113054_ses-PNC1_SegmentationPosteriors5.nii.gz',
+# '/data/output/ses-PNC1/sub-113054_ses-PNC1_SegmentationPosteriors6.nii.gz']
 output_prefix = args.output_prefix #output_prefix='/data/output/ses-PNC1/sub-113054_ses-PNC1_'
 threads = args.threads #threads=1
 
@@ -66,7 +66,7 @@ atropos_segmentation = ants.image_read(segmentation)
 print("KellyKapowski")
 
 kk_file = output_prefix + "CorticalThickness.nii.gz"
-kk = None
+#kk = None
 #if not path.exists(kk_file):
     #print("    Atropos:  calculating\n")
     #atropos = antspynet.deep_atropos(t1, do_preprocessing=True,
