@@ -22,8 +22,6 @@ RUN apt-get update && \
     pip install --use-feature=2020-resolver git+https://github.com/ANTsX/ANTsPyNet.git@5f64287e693ff15b3588233b13eb065307a846e2 && \
     git clone https://github.com/ANTsX/ANTsPy.git /opt/ANTsPy 
 
-#RUN pip install --user nipy==0.4.2
-
 FROM python:3.8.6-slim
 
 COPY --from=builder /opt/venv /opt/venv

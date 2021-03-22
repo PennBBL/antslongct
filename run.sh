@@ -6,8 +6,6 @@ InDir=/data/input
 OutDir=/data/output
 
 
-projectName=ExtraLong #FOR TESTING
-
 # Bind
 # 1.) Group template directory (template, priors and DKT labels needed)
 # 2.) Single subject template directory directory (SST and padded/scaled T1w images needed)
@@ -160,7 +158,7 @@ for ses in ${sessions}; do
   ### Quantify regional values
   ### Create a mask out of the cortical thickness image (try dividng by itself in ANTs - nope, puts in 1 for 0/0)
   #ImageMath 3 ${OutDir}/${ses}/${subj}_${ses}_CorticalThickness_mask.nii.gz TruncateImageIntensity ${OutDir}/${ses}/${subj}_${ses}_CorticalThickness.nii.gz binary-maskImage
-  python /scripts/maskCT.py ${subj} ${ses}
+  python /scripts/maskCT.py ${subj} ${ses} ${subLabel}
   ### Take the intersection of the cortical thickness mask and the DKT label
   ### image to get labels that conform to gray matter
   mask=${OutDir}/${ses}/${subj}_${ses}_CorticalThickness_mask.nii.gz
