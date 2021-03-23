@@ -170,16 +170,7 @@ for ses in ${sessions}; do
   python /scripts/quantifyROIs.py ${subj} ${ses}
   # Move files to session directories
   mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
+  mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
 done
 
 ### GMD: https://github.com/PennBBL/xcpEngine/blob/master/modules/gmd/gmd.mod
-
-
-
-
-
-
-
-
-#warp group to SST (to get tissue class priors in SST space), do atropos on SST,
-# use output as priors for T1w images (closest to standard pipeline)
