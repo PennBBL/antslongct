@@ -12,8 +12,8 @@ import nibabel as nib
 #from templateflow.api import get as get_template
 import pandas as pd
 #from nipy import mindboggle
-sys.path.append('/scripts')
-from mindboggle import *
+#sys.path.append('/scripts')
+#from mindboggle import *
 import numpy as np
 #from scipy.spatial.distance import pdist, squareform
 import nilearn
@@ -38,9 +38,13 @@ ints = dkt_df.LabelID.values
 names = dkt_df.LabelName.to_numpy() #dkt_df.LabelName.values
 names = [name.replace('.', '_') for name in names]
 
-volvals = volume_per_brain_region(atlas, include_labels=ints, exclude_labels=[0],
-                            label_names=names, save_table=False,
-                            output_table='', verbose=False)
+# Get the voxel size (mm3)
+pixdim = atlas.header['pixdim'][0:3]
+voxsize = np.prod(pixdim)
+
+# Calculate volume
+atlas_array = atlas.get_fdata()
+volvals = [atlas_array[atlas_array == int].shape[0]*voxsize for int in ints]
 
 masker = NiftiLabelsMasker('/data/output/'+ses+'/'+sub+'_'+ses+'_DKTIntersection.nii.gz')
 masker.fit()
@@ -52,11 +56,14 @@ cort_names = ['mprage_jlf_ct_'+name for name in names]
 gmd_names = ['mprage_jlf_gmd_'+name for name in names]
 
 colnames = [sublabel, 'seslabel']
+colnames.extend(vol_names)
 colnames.extend(cort_names)
 colnames.extend(gmd_names)
 
 vals = [sub, ses]
+vals.extend(volvals)
 vals.extend(cortvals.tolist()[0])
 vals.extend(gmdvals.tolist()[0])
-out_df = pd.DataFrame(data=vals, columns=colnames)
-#[sub, ses].extend(cortvals[0].tolist()).extend(gmdvals[0].tolist())
+out_df = pd.DataFrame(data=[vals], columns=colnames)
+
+out_df.to_csv('/data/output/'+ses+'/'+sub+'_'+ses+'_struc.csv', index=False)
