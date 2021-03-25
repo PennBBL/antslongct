@@ -62,6 +62,7 @@ RUN mkdir /scripts
 COPY run.sh /scripts/run.sh
 COPY maskPriorsWarpedToSST.py /scripts/maskPriorsWarpedToSST.py
 COPY maskPriorsWarpedToSes.py /scripts/maskPriorsWarpedToSes.py
+COPY quantifyROIs.py /scripts/quantifyROIs.py
 COPY maskCT.py /scripts/maskCT.py
 RUN chmod +x /scripts/*
 

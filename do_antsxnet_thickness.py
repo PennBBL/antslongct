@@ -117,4 +117,4 @@ ants.image_write(kk, kk_file)
 #    ants_dkt = ants.iMath(ants_tmp, "PropagateLabelsThroughMask", ants_tmp * dkt)
 #    ants.image_write(ants_dkt, output_prefix + "DktPropagatedLabels.nii.gz")
 #
-os.system("cp -r /home/antspyuser/ /data/output/")
+#os.system("cp -r /home/antspyuser/ /data/output/")

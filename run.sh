@@ -126,18 +126,18 @@ for ses in ${sessions}; do
   t1w=${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
   seg=${OutDir}/${ses}/${subj}_${ses}_Segmentation.nii.gz
   cp ${seg} ${OutDir}/${ses}/${subj}_${ses}_Segmentation_old.nii.gz
-  sespost=`find ${OutDir} -name "${subj}_${ses}_SegmentationPosteriors*.nii.gz" -not -name "*PreviousIteration*"`
+  sespost=`find ${OutDir} -name "${subj}_${ses}_SegmentationPosteriors*.nii.gz" -not -name "*PreviousIteration*"`;
   # Copy cortical gray matter posteriors to GMD image
-  cp ${OutDir}/${ses}/${subj}_${ses}_SegmentationPosteriors4.nii.gz ${OutDir}/${ses}/${subj}_${ses}_GMD.nii.gz
+  cp ${OutDir}/${ses}/${subj}_${ses}_SegmentationPosteriors4.nii.gz ${OutDir}/${ses}/${subj}_${ses}_GMD.nii.gz;
   # Run cortical thickness
+  t1w=${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
   python /opt/bin/do_antsxnet_thickness.py -a ${t1w} -s ${seg} -p ${sespost} -o ${OutDir}/${ses}/${subj}_${ses}_ -t 1 ;
 
   ### Warp DKT labels from the group template space to the T1w space
-  t1w=${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
   # Calculate the composite inverse warp
   warpSSTToSes=`find ${InDir}/${subj}/${ses}/ -name "*padscale*InverseWarp.nii.gz"`;
   affSesToSST=`find ${InDir}/ -name "${subj}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
-  warpGroupTemplateToSST=`find ${OutDir} -name "${subj}_NormalizedtoExtraLongTemplate_*InverseWarp.nii.gz"`
+  warpGroupTemplateToSST=`find ${OutDir} -name "${subj}_NormalizedtoExtraLongTemplate_*InverseWarp.nii.gz"`;
   antsApplyTransforms \
     -d 3 \
     -e 0 \
