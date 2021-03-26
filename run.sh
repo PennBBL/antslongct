@@ -167,7 +167,7 @@ for ses in ${sessions}; do
   ### Get cortical thickness, GMD and volume of each region
   #ImageMath 3 LabelStats ${OutDir}/${ses}/${subj}_${ses}_CorticalThickness.nii.gz ${OutDir}/${ses}/${subj}_${ses}_DKT.nii.gz
 
-  python /scripts/quantifyROIs.py ${subj} ${ses}
+  python /scripts/quantifyROIs.py ${subj} ${ses} ${subLabel}
   # Move files to session directories
   mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
   mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
