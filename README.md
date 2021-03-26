@@ -1,7 +1,7 @@
 # ANTsLongCT
 
 ANTsLongCT utilizes the output of [ANTsSST](https://github.com/PennBBL/antssst)
-and [ANTsLongCT](https://github.com/PennBBL/ANTsLongCT) to get volume, cortical
+and [ANTsPriors](https://github.com/PennBBL/antspriors) to get volume, cortical
 thickness and gray matter density values for every region in the DKT atlas. Cortical
 thickness is computed using ANTs' deep learning cortical thickness algorithm.
 
@@ -85,7 +85,7 @@ to the output directory in the container (`/data/output`).
 Substitute your own values for the files/directories to bind.
 
 ## Example Scripts
-See [this script](https://github.com/PennBBL/ExtraLong/blob/master/scripts/process/ANTsLong/submitANTsLongCT_v0.0.4.py)
+See [this script](https://github.com/PennBBL/ExtraLong/blob/master/scripts/process/ANTsLong/submitANTsLongCT_v0.0.5.py)
 for an example of building a launch script per subject.
 
 ## Notes
