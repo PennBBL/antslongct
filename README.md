@@ -12,7 +12,7 @@ You must [install Docker](https://docs.docker.com/get-docker/) to use the ANTsLo
 Docker image.
 
 After Docker is installed, pull the ANTsLongCT image by running the following command:
-`docker pull pennbbl/antslongct:0.0.4`.
+`docker pull pennbbl/antslongct:0.0.5`.
 
 Typically, Docker is used on local machines and not clusters because it requires
 root access. If you want to run the container on a cluster, follow the Singularity
@@ -24,8 +24,8 @@ Here is an example from one of Ellyn's runs:
 docker run --rm -ti  -e projectName="ExtraLong" -e subLabel="bblid" \
   -v /Users/butellyn/Documents/ExtraLong/data/singleSubjectTemplates/antssst5/sub-10410:/data/input/sub-10410 \
   -v /Users/butellyn/Documents/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors \
-  -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct2/sub-10410:/data/output \
-  pennbbl/antslongct:0.0.36
+  -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct3/sub-10410:/data/output \
+  pennbbl/antslongct:0.0.5
 ```
 
 - Line 1: Specify environment variables: the name of the project without any spaces
@@ -39,7 +39,7 @@ because she got good output on her fifth try.
 - Line 3: Bind the group template directory (`/Users/butellyn/Documents/ExtraLong/data/groupTemplates/antspriors`)
 to its spot in the container (`/data/input/antspriors`).
 - Line 4: Bind the directory where you want your ANTsLongCT output to end up
-(`/Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct2/sub-10410`)
+(`/Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct3/sub-10410`)
 to the output directory in the container (`/data/output`).
 - Line 5: Specify the Docker image and version. Run `docker images` to see if you
 have the correct version pulled.
@@ -52,7 +52,7 @@ You must [install Singularity](https://singularity.lbl.gov/docs-installation) to
 use the ANTsLongCT Singularity image.
 
 After Singularity is installed, pull the ANTsLongCT image by running the following command:
-`singularity pull docker://pennbbl/ANTsLongCT:0.0.36`.
+`singularity pull docker://pennbbl/antslongct:0.0.5`.
 
 Note that Singularity does not work on Macs, and will almost surely have to be
 installed by a system administrator on your institution's computing cluster.
@@ -63,8 +63,8 @@ Here is an example from one of Ellyn's runs:
 SINGULARITYENV_projectName=ExtraLong SINGULARITYENV_subLabel=bblid singularity run --writable-tmpfs --cleanenv \
   -B /project/ExtraLong/data/singleSubjectTemplates/antssst5/sub-10410:/data/input/sub-10410 \
   -B /project/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors/ \
-  -B /project/ExtraLong/data/corticalThickness/antslongct2/sub-10410:/data/output \
-  /project/ExtraLong/images/antslongct_0.0.4.sif
+  -B /project/ExtraLong/data/corticalThickness/antslongct3/sub-10410:/data/output \
+  /project/ExtraLong/images/antslongct_0.0.5.sif
 ```
 
 - Line 1: Specify environment variables: the name of the project without any spaces
@@ -78,7 +78,7 @@ because she got good output on her fifth try.
 - Line 3: Bind the group template directory (`/project/ExtraLong/data/groupTemplates/antspriors`)
 to its spot in the container (`/data/input/antspriors`).
 - Line 4: Bind the directory where you want your ANTsLongCT output to end up
-(`/project/ExtraLong/data/corticalThickness/antslongct2/sub-10410`)
+(`/project/ExtraLong/data/corticalThickness/antslongct3/sub-10410`)
 to the output directory in the container (`/data/output`).
 - Line 5: Specify the Singularity image file.
 
