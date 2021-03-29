@@ -91,3 +91,4 @@ for an example of building a launch script per subject.
 ## Notes
 1. For details on how ANTsLongCT was utilized for the ExtraLong project (all
 longitudinal T1w data in the BBL), see [this wiki](https://github.com/PennBBL/ExtraLong/wiki).
+2. Future directions: Set home directory in Dockerfile.

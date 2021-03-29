@@ -169,8 +169,8 @@ for ses in ${sessions}; do
 
   python /scripts/quantifyROIs.py ${subj} ${ses} ${subLabel}
   # Move files to session directories
-  mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
-  mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
+  #mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
+  #mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
 done
 
 ### GMD: https://github.com/PennBBL/xcpEngine/blob/master/modules/gmd/gmd.mod
