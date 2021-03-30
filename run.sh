@@ -82,7 +82,6 @@ cp ${OutDir}/GMDeepPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior5.n
 cp ${OutDir}/WMCorticalPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior6.nii.gz
 
 ### Perform Atropos on SST, using custom priors (weight = .25)
-# Specifying priors not working
 antsAtroposN4.sh -d 3 -a ${sst} -x ${groupMaskInSST} -c 6 -o ${OutDir}/${subj}_ \
   -w .25 -p ${OutDir}/prior%d.nii.gz
 
@@ -122,7 +121,6 @@ for ses in ${sessions}; do
     -p ${OutDir}/${ses}/prior%d.nii.gz
   # Delete priors with simpler name
   rm ${OutDir}/${ses}/prior*.nii.gz
-  # Run cortical thickness
   t1w=${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
   seg=${OutDir}/${ses}/${subj}_${ses}_Segmentation.nii.gz
   cp ${seg} ${OutDir}/${ses}/${subj}_${ses}_Segmentation_old.nii.gz
@@ -167,10 +165,23 @@ for ses in ${sessions}; do
   ### Get cortical thickness, GMD and volume of each region
   #ImageMath 3 LabelStats ${OutDir}/${ses}/${subj}_${ses}_CorticalThickness.nii.gz ${OutDir}/${ses}/${subj}_${ses}_DKT.nii.gz
 
-  python /scripts/quantifyROIs.py ${subj} ${ses} ${subLabel}
+  shortsub=`echo ${subj} | cut -d "-" -f 2`
+  shortses=`echo ${ses} | cut -d "-" -f 2`
+  python /scripts/quantifyROIs.py ${shortsubj} ${shortses} ${subLabel}
   # Move files to session directories
   #mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
   #mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
+  # Remove unnecessary files (full output way too big)
+  rm ${OutDir}/${ses}/*_CorticalThickness_mask.nii.gz
+  rm ${OutDir}/${ses}/*_priorsMask.nii.gz
+  rm ${OutDir}/${ses}/*Segmentation*
 done
+
+# Remove unnecessary files
+rm ${OutDir}/*Prior*
+rm ${OutDir}/*Segmentation*
+rm ${OutDir}/*_Normalizedto${projectName}Template_*
+rm ${OutDir}/*_priorsMask.nii.gz
+
 
 ### GMD: https://github.com/PennBBL/xcpEngine/blob/master/modules/gmd/gmd.mod
