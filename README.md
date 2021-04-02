@@ -85,7 +85,7 @@ to the output directory in the container (`/data/output`).
 Substitute your own values for the files/directories to bind.
 
 ## Example Scripts
-See [this script](https://github.com/PennBBL/ExtraLong/blob/master/scripts/process/ANTsLong/submitANTsLongCT_v0.0.5.py)
+See [this script](https://github.com/PennBBL/ExtraLong/blob/master/scripts/process/ANTsLong/submitANTsLongCT_v0.0.8.py)
 for an example of building a launch script per subject.
 
 ## Notes
