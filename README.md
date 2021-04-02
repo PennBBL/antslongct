@@ -64,7 +64,7 @@ SINGULARITYENV_projectName=ExtraLong SINGULARITYENV_subLabel=bblid singularity r
   -B /project/ExtraLong/data/singleSubjectTemplates/antssst5/sub-10410:/data/input/sub-10410 \
   -B /project/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors/ \
   -B /project/ExtraLong/data/corticalThickness/antslongct3/sub-10410:/data/output \
-  /project/ExtraLong/images/antslongct_0.0.5.sif
+  /project/ExtraLong/images/antslongct_0.0.8.sif
 ```
 
 - Line 1: Specify environment variables: the name of the project without any spaces
