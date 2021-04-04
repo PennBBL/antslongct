@@ -60,7 +60,7 @@ colnames.extend(vol_names)
 colnames.extend(cort_names)
 colnames.extend(gmd_names)
 
-vals = [sub, ses]
+vals = [sub.split('-')[1], ses.split('-')[1]]
 vals.extend(volvals)
 vals.extend(cortvals.tolist()[0])
 vals.extend(gmdvals.tolist()[0])
