@@ -65,8 +65,9 @@ for prior in ${priors}; do
     -d 3 -e 0 -i ${prior} \
     -o [${OutDir}/${tissue}Prior_Normalizedto_${subj}_template.nii.gz,0] \
     -r ${sst} \
-    -t ${warpGroupTemplatetoSST} \
-    -t [${affSSTToGroupTemplate},1]
+    -t [${affSSTToGroupTemplate},1] \
+    -t ${warpGroupTemplatetoSST}
+    # ^ Order of transforms switched April 6, 2021
 done
 
 ### Create a mask out of all non-zero voxels of warped priors
@@ -101,8 +102,9 @@ for ses in ${sessions}; do
       -d 3 -e 0 -i ${post} \
       -o [${OutDir}/${ses}/${warpedname},0] \
       -r ${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
-      -t ${warpSSTtoSes} \
-      -t [${affSestoSST},1]
+      -t [${affSestoSST},1] \
+      -t ${warpSSTtoSes}
+      # ^ Order of transforms switched April 6, 2021
   done
   ### Use output of Atropos on the SST as priors Atropos on sessions (weight = .5)
   ### Get cortical thickness (feed in hard segmentation for Atropos on session)
@@ -143,8 +145,9 @@ for ses in ${sessions}; do
     -r ${TemplateDir}/${projectName}Template_template0.nii.gz \
     -t [${affSesToSST}, 1] \
     -t ${warpSSTToSes} \
-    -t ${warpGroupTemplateToSST} \
-    -t [${affSSTToGroupTemplate}, 1]
+    -t [${affSSTToGroupTemplate}, 1] \
+    -t ${warpGroupTemplateToSST}
+    # ^ Order of transforms switched April 6, 2021
   # Transform labels from group template to t1w space
   antsApplyTransforms \
     -d 3 -e 0 -n Multilabel \

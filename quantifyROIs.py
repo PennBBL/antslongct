@@ -21,8 +21,8 @@ from nilearn.input_data import NiftiLabelsMasker
 
 #latest = etelemetry.get_project("nipy/mindboggle")
 
-sub=sys.argv[1] #sub='113054'
-ses=sys.argv[2] #ses='PNC1'
+sub=sys.argv[1] #sub='sub-113054'
+ses=sys.argv[2] #ses='ses-PNC1'
 sublabel=sys.argv[3] #sublabel='bblid'
 
 atlas = nib.load('/data/output/'+ses+'/'+sub+'_'+ses+'_DKTIntersection.nii.gz')
