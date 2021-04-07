@@ -60,9 +60,10 @@ priors=`find ${TemplateDir} -name "*Template_prior.nii.gz"`
 warpGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
 #affGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*GenericAffine.mat"`
 for prior in ${priors}; do
-  tissue=`echo ${prior} | cut -d "/" -f 6 | cut -d "_" -f 1`;
+  tissue=`echo ${prior} | basename | cut -d "_" -f 1`;
   antsApplyTransforms \
     -d 3 -e 0 -i ${prior} \
+    -n Gaussian \
     -o [${OutDir}/${tissue}Prior_Normalizedto_${subj}_template.nii.gz,0] \
     -r ${sst} \
     -t [${affSSTToGroupTemplate},1] \
@@ -100,6 +101,7 @@ for ses in ${sessions}; do
     warpedname=${warpedname}_Normalizedto_${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
     antsApplyTransforms \
       -d 3 -e 0 -i ${post} \
+      -n Gaussian \
       -o [${OutDir}/${ses}/${warpedname},0] \
       -r ${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
       -t [${affSestoSST},1] \
@@ -170,7 +172,7 @@ for ses in ${sessions}; do
 
   python /scripts/quantifyROIs.py ${subj} ${ses} ${subLabel}
   # Move files to session directories
-  #mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
+  mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
   #mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
   # Remove unnecessary files (full output way too big)
   rm ${OutDir}/${ses}/*_CorticalThickness_mask.nii.gz

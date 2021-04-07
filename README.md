@@ -3,7 +3,7 @@
 ANTsLongCT utilizes the output of [ANTsSST](https://github.com/PennBBL/antssst)
 and [ANTsPriors](https://github.com/PennBBL/antspriors) to get volume, cortical
 thickness and gray matter density values for every region in the DKT atlas. Cortical
-thickness is computed using ANTs' deep learning cortical thickness algorithm.
+thickness is computed using ANTs' cortical thickness algorithm.
 
 
 ## Docker
@@ -12,7 +12,7 @@ You must [install Docker](https://docs.docker.com/get-docker/) to use the ANTsLo
 Docker image.
 
 After Docker is installed, pull the ANTsLongCT image by running the following command:
-`docker pull pennbbl/antslongct:0.0.8`.
+`docker pull pennbbl/antslongct:0.0.10`.
 
 Typically, Docker is used on local machines and not clusters because it requires
 root access. If you want to run the container on a cluster, follow the Singularity
@@ -25,7 +25,7 @@ docker run --rm -ti  -e projectName="ExtraLong" -e subLabel="bblid" \
   -v /Users/butellyn/Documents/ExtraLong/data/singleSubjectTemplates/antssst5/sub-10410:/data/input/sub-10410 \
   -v /Users/butellyn/Documents/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors \
   -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct3/sub-10410:/data/output \
-  pennbbl/antslongct:0.0.8
+  pennbbl/antslongct:0.0.10
 ```
 
 - Line 1: Specify environment variables: the name of the project without any spaces
@@ -52,7 +52,7 @@ You must [install Singularity](https://singularity.lbl.gov/docs-installation) to
 use the ANTsLongCT Singularity image.
 
 After Singularity is installed, pull the ANTsLongCT image by running the following command:
-`singularity pull docker://pennbbl/antslongct:0.0.8`.
+`singularity pull docker://pennbbl/antslongct:0.0.10`.
 
 Note that Singularity does not work on Macs, and will almost surely have to be
 installed by a system administrator on your institution's computing cluster.
@@ -64,7 +64,7 @@ SINGULARITYENV_projectName=ExtraLong SINGULARITYENV_subLabel=bblid singularity r
   -B /project/ExtraLong/data/singleSubjectTemplates/antssst5/sub-10410:/data/input/sub-10410 \
   -B /project/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors/ \
   -B /project/ExtraLong/data/corticalThickness/antslongct3/sub-10410:/data/output \
-  /project/ExtraLong/images/antslongct_0.0.8.sif
+  /project/ExtraLong/images/antslongct_0.0.10.sif
 ```
 
 - Line 1: Specify environment variables: the name of the project without any spaces
@@ -85,7 +85,7 @@ to the output directory in the container (`/data/output`).
 Substitute your own values for the files/directories to bind.
 
 ## Example Scripts
-See [this script](https://github.com/PennBBL/ExtraLong/blob/master/scripts/process/ANTsLong/submitANTsLongCT_v0.0.8.py)
+See [this script](https://github.com/PennBBL/ExtraLong/blob/master/scripts/process/ANTsLong/submitANTsLongCT_v0.0.10.py)
 for an example of building a launch script per subject.
 
 ## Notes
