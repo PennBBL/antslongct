@@ -60,7 +60,7 @@ priors=`find ${TemplateDir} -name "*Template_prior.nii.gz"`
 warpGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
 #affGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*GenericAffine.mat"`
 for prior in ${priors}; do
-  tissue=`echo ${prior} | basename | cut -d "_" -f 1`;
+  tissue=`echo ${prior} | cut -d "/" -f 6 | cut -d "_" -f 1`;
   antsApplyTransforms \
     -d 3 -e 0 -i ${prior} \
     -n Gaussian \

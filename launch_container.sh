@@ -2,7 +2,7 @@ docker run --rm -ti --entrypoint=/bin/bash -e projectName="ExtraLong" -e subLabe
   -v /Users/butellyn/Documents/ExtraLong/data/singleSubjectTemplates/antssst5/sub-113054:/data/input/sub-113054 \
   -v /Users/butellyn/Documents/ExtraLong/data/groupTemplates/antspriors:/data/input/antspriors \
   -v /Users/butellyn/Documents/ExtraLong/data/corticalThickness/antslongct2/sub-113054:/data/output \
-  pennbbl/antslongct
+  pennbbl/antslongct:0.0.9
 #^ This is an interactive call. See the README for a non-interactive call.
 
 
