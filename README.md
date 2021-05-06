@@ -95,3 +95,4 @@ longitudinal T1w data in the BBL), see [this wiki](https://github.com/PennBBL/Ex
 ## Future Directions
 1. Set home directory in Dockerfile.
 2. Get volumes of subcortical labels (will require tinkering with [ANTsPriors](https://github.com/PennBBL/antspriors)).
+3. Evaluate whether method of computing GMD is comparable to [Stathis' method](https://github.com/egenn/JNeurosci_GMDVdev_2017).
