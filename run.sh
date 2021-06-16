@@ -23,16 +23,17 @@ sessions=`find ${InDir}/${subj}/ -type d -name "ses-*" | cut -d "/" -f 5`
 ### If the composite warp doesn't already exist, compute warp from group template to SST and the composite warp
 ### else, copy the composite warp into the output directory
 
+# TODO: fix bug where inverse warp isn't set for subjs in GT
 for ses in ${sessions}; do
 
   compwarp="${TemplateDir}/SST/${subj}_${ses}_Normalizedto${projectName}TemplateCompositeWarp.nii.gz"
   
   # If subject was part of group template, composite warp will already exist.
   if [ -f ${compwarp} ]; then
-    SST-to-GT-warp=`find ${TemplateDir}/ -name "${projectName}Template_${subj}_template*Warp.nii.gz" -not -name "*Inverse*"`
-    SST-to-GT-affine=`find ${TemplateDir}/ -name "${projectName}Template_${subj}_template*Affine.mat" -not -name "*Inverse*"`
-    cp ${SST-to-GT-warp} ${OutDir}/${subj}_Normalizedto${projectName}Template_Warp.nii.gz;
-    cp ${SST-to-GT-affine} ${OutDir}/${subj}_Normalizedto${projectName}Template_Affine.mat;
+    SST_to_GT_warp=`find ${TemplateDir}/ -name "${projectName}Template_${subj}_template*Warp.nii.gz" -not -name "*Inverse*"`
+    SST_to_GT_affine=`find ${TemplateDir}/ -name "${projectName}Template_${subj}_template*Affine.mat" -not -name "*Inverse*"`
+    cp ${SST_to_GT_warp} ${OutDir}/${subj}_Normalizedto${projectName}Template_Warp.nii.gz;
+    cp ${SST_to_GT_affine} ${OutDir}/${subj}_Normalizedto${projectName}Template_Affine.mat;
     cp ${compwarp} ${OutDir};
   
   # Else, create composite warp
@@ -42,12 +43,12 @@ for ses in ${sessions}; do
       -m ${InDir}/${subj}/${subj}_template0.nii.gz \
       -o ${OutDir}/${subj}_Normalizedto${projectName}Template_
     
-    SST-to-GT-warp=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Warp.nii.gz" -not -name "*Inverse*"`
-    SST-to-GT-affine=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Affine.mat" -not -name "*Inverse*"`
+    SST_to_GT_warp=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Warp.nii.gz" -not -name "*Inverse*"`
+    SST_to_GT_affine=`find ${OutDir}/ -name "${subj}_Normalizedto${projectName}Template_*Affine.mat" -not -name "*Inverse*"`
     
     # Calculate composite warp
-    Native-to-SST-warp=`find ${InDir}/${subj}/${ses}/ -name "*padscale*Warp.nii.gz" -not -name "*Inverse*"`;
-    Native-to-SST-affine=`find ${InDir}/ -name "${subj}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
+    Native_to_SST_warp=`find ${InDir}/${subj}/${ses}/ -name "*padscale*Warp.nii.gz" -not -name "*Inverse*"`;
+    Native_to_SST_affine=`find ${InDir}/ -name "${subj}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
     
     # Composite t1w space to group template space
     antsApplyTransforms \
@@ -55,10 +56,10 @@ for ses in ${sessions}; do
       -e 0 \
       -o [${OutDir}/${subj}_${ses}_Normalizedto${projectName}TemplateCompositeWarp.nii.gz, 1] \
       -r ${TemplateDir}/${projectName}Template_template0.nii.gz \
-      -t ${SST-to-GT-warp} \
-      -t ${SST-to-GT-affine} \
-      -t ${Native-to-SST-warp} \
-      -t ${Native-to-SST-affine};
+      -t ${SST_to_GT_warp} \
+      -t ${SST_to_GT_affine} \
+      -t ${Native_to_SST_warp} \
+      -t ${Native_to_SST_affine};
   fi;
 done
 
@@ -69,8 +70,8 @@ done
 ### Warp priors in group template space to SST space #antsApplyTransforms not working/NECESSARY??
 priors=`find ${TemplateDir} -name "*Template_prior.nii.gz"`
 
-GT-to-SST-warp=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
-#affGroupTemplatetoSST=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*GenericAffine.mat"`
+GT_to_SST_warp=`find ${OutDir} -name "${subj}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
+
 for prior in ${priors}; do
   tissue=`echo ${prior} | cut -d "/" -f 6 | cut -d "_" -f 1`;
   antsApplyTransforms \
@@ -78,9 +79,8 @@ for prior in ${priors}; do
     -n Gaussian \
     -o [${OutDir}/${tissue}Prior_Normalizedto_${subj}_template.nii.gz,0] \
     -r ${sst} \
-    -t [${SST-to-GT-affine},1] \
-    -t ${GT-to-SST-warp}
-    # ^ Order of transforms switched April 6, 2021
+    -t [${SST_to_GT_affine},1] \
+    -t ${GT_to_SST_warp}
 done
 
 ###############################################################################
@@ -90,6 +90,8 @@ done
 ### Create a mask out of all non-zero voxels of warped priors
 python /scripts/maskPriorsWarpedToSST.py ${subj}
 groupMaskInSST=`find ${OutDir} -name "${subj}_priorsMask.nii.gz"`
+
+## TODO: try making mask by running brain extraction on warped group priors instead of above.
 
 ### Copy priors to simpler name
 cp ${OutDir}/BrainstemPrior_Normalizedto_${subj}_template.nii.gz ${OutDir}/prior1.nii.gz
@@ -110,13 +112,12 @@ rm ${OutDir}/prior*.nii.gz
 ## Step 3. Warp segmentation posterior to T1w Space. Run Atropos on T1w image (session).
 ###############################################################################
 
-
 ### Warp posteriors in SST space to T1w (ses) space
 posteriors=`find ${OutDir} -name "${subj}_SegmentationPosteriors*.nii.gz" -not -name "*PreviousIteration*"`
 for ses in ${sessions}; do
   mkdir ${OutDir}/${ses}
-  SST-to-Native-warp=`find ${InDir}/${subj}/${ses}/ -name "*InverseWarp.nii.gz"`
-  Native-to-SST-affine=`find ${InDir}/${subj}/${ses}/ -name "*_desc-preproc_T1w_padscale*Affine.txt"`
+  SST_to_Native_warp=`find ${InDir}/${subj}/${ses}/ -name "*InverseWarp.nii.gz"`
+  Native_to_SST_affine=`find ${InDir}/${subj}/${ses}/ -name "*_desc-preproc_T1w_padscale*Affine.txt"`
   for post in ${posteriors}; do
     warpedname=`echo ${post} | cut -d "/" -f 4 | cut -d "_" -f 2 | cut -d "." -f 1`
     warpedname=${warpedname}_Normalizedto_${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz
@@ -125,8 +126,8 @@ for ses in ${sessions}; do
       -n Gaussian \
       -o [${OutDir}/${ses}/${warpedname},0] \
       -r ${InDir}/${subj}/${ses}/${subj}_${ses}_desc-preproc_T1w_padscale.nii.gz \
-      -t [${Native-to-SST-affine},1] \
-      -t ${SST-to-Native-warp}
+      -t [${Native_to_SST_affine},1] \
+      -t ${SST_to_Native_warp}
       # ^ Order of transforms switched April 6, 2021
   done
   
@@ -169,18 +170,18 @@ for ses in ${sessions}; do
 
   ### Warp DKT labels from the group template space to the T1w space
   # Calculate the composite inverse warp
-  SST-to-Native-warp=`find ${InDir}/${subj}/${ses}/ -name "*padscale*InverseWarp.nii.gz"`;
-  Native-to-SST-affine=`find ${InDir}/ -name "${subj}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
-  GT-to-SST-warp=`find ${OutDir} -name "${subj}_NormalizedtoExtraLongTemplate_*InverseWarp.nii.gz"`;
+  SST_to_Native_warp=`find ${InDir}/${subj}/${ses}/ -name "*padscale*InverseWarp.nii.gz"`;
+  Native_to_SST_affine=`find ${InDir}/ -name "${subj}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
+  GT_to_SST_warp=`find ${OutDir} -name "${subj}_NormalizedtoExtraLongTemplate_*InverseWarp.nii.gz"`;
   antsApplyTransforms \
     -d 3 \
     -e 0 \
     -o [${OutDir}/${ses}/${subj}_${ses}_Normalizedto${projectName}TemplateCompositeInverseWarp.nii.gz, 1] \
     -r ${TemplateDir}/${projectName}Template_template0.nii.gz \
-    -t [${Native-to-SST-affine}, 1] \
-    -t ${SST-to-Native-warp} \
-    -t [${SST-to-GT-affine}, 1] \
-    -t ${GT-to-SST-warp}
+    -t [${Native_to_SST_affine}, 1] \
+    -t ${SST_to_Native_warp} \
+    -t [${SST_to_GT_affine}, 1] \
+    -t ${GT_to_SST_warp}
     # ^ Order of transforms switched April 6, 2021
   # Transform labels from group template to t1w space
   antsApplyTransforms \
