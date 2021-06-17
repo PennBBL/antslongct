@@ -10,18 +10,18 @@ import pandas as pd
 import os
 from copy import deepcopy
 
-subj=sys.argv[1]
+sub=sys.argv[1]
 
-img = nib.load('/data/output/GMCorticalPrior_Normalizedto_'+subj+'_template.nii.gz')
+img = nib.load('/data/output/GMCorticalPrior_Normalizedto_'+sub+'_template.nii.gz')
 gmcort = img.get_fdata()
-wmcort = nib.load('/data/output/WMCorticalPrior_Normalizedto_'+subj+'_template.nii.gz').get_fdata()
-csf = nib.load('/data/output/CSFPrior_Normalizedto_'+subj+'_template.nii.gz').get_fdata()
-gmdeep = nib.load('/data/output/GMDeepPrior_Normalizedto_'+subj+'_template.nii.gz').get_fdata()
-bstem = nib.load('/data/output/BrainstemPrior_Normalizedto_'+subj+'_template.nii.gz').get_fdata()
-cereb = nib.load('/data/output/CerebellumPrior_Normalizedto_'+subj+'_template.nii.gz').get_fdata()
+wmcort = nib.load('/data/output/WMCorticalPrior_Normalizedto_'+sub+'_template.nii.gz').get_fdata()
+csf = nib.load('/data/output/CSFPrior_Normalizedto_'+sub+'_template.nii.gz').get_fdata()
+gmdeep = nib.load('/data/output/GMDeepPrior_Normalizedto_'+sub+'_template.nii.gz').get_fdata()
+bstem = nib.load('/data/output/BrainstemPrior_Normalizedto_'+sub+'_template.nii.gz').get_fdata()
+cereb = nib.load('/data/output/CerebellumPrior_Normalizedto_'+sub+'_template.nii.gz').get_fdata()
 
 sum_arr = gmcort + wmcort + csf + gmdeep + bstem + cereb
 sum_arr[sum_arr > 0] = 1
 
 sum_img = nib.Nifti1Image(sum_arr, affine=img.affine)
-sum_img.to_filename('/data/output/'+subj+'_priorsMask.nii.gz')
+sum_img.to_filename('/data/output/'+sub+'_priorsMask.nii.gz')
