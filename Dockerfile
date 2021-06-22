@@ -59,7 +59,9 @@ RUN mkdir /data
 RUN mkdir /data/input
 RUN mkdir /data/output
 RUN mkdir /scripts
+
 COPY run.sh /scripts/run.sh
+COPY OASIS_PAC /data/input/OASIS_PAC
 COPY maskPriorsWarpedToSST.py /scripts/maskPriorsWarpedToSST.py
 COPY maskPriorsWarpedToSes.py /scripts/maskPriorsWarpedToSes.py
 COPY quantifyROIs.py /scripts/quantifyROIs.py
