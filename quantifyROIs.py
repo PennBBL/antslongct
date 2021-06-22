@@ -3,67 +3,110 @@
 ### Ellyn Butler
 ### March 2, 2021 - March 22, 2021
 
-import sys
-#from nilearn.input_data import NiftiLabelsMasker
-#import numpy as np
-#from scipy.stats import rankdata
-#from scipy import signal
-import nibabel as nib
-#from templateflow.api import get as get_template
-import pandas as pd
-#from nipy import mindboggle
-#sys.path.append('/scripts')
-#from mindboggle import *
+import os
+import argparse
 import numpy as np
-#from scipy.spatial.distance import pdist, squareform
-import nilearn
+import pandas as pd
+import nibabel as nib
 from nilearn.input_data import NiftiLabelsMasker
 
-#latest = etelemetry.get_project("nipy/mindboggle")
+###############################################################################
+############################   Parse arguments     ############################
+###############################################################################
 
-sub=sys.argv[1] #sub='sub-113054'
-ses=sys.argv[2] #ses='ses-PNC1'
-sublabel=sys.argv[3] #sublabel='bblid'
+parser = argparse.ArgumentParser(
+    description='Calculate volume, cortical thickness, and GMD by DKT region.')
 
-atlas = nib.load('/data/output/'+ses+'/'+sub+'_'+ses+'_DKTIntersection.nii.gz')
-#masker = NiftiLabelsMasker(labels_img=atlas, smoothing_fwhm=None, standardize=False)
+parser.add_argument('-d', '--dkt', required=True,
+                    help='full path to DKT labeled image')
+parser.add_argument('-c', '--ct',
+                    help='full path to cortical thickness image')
+parser.add_argument('-g', '--gmd',
+                    help='full path to gray matter density image')                    
+parser.add_argument('-l', '--labels', 
+                    default='/data/input/mindboggleCorticalLabels.csv',
+                    help='full path to labels mapping csv')
 
-cort = nib.load('/data/output/'+ses+'/'+sub+'_'+ses+'_CorticalThickness.nii.gz')
-gmd = nib.load('/data/output/'+ses+'/'+sub+'_'+ses+'_GMD.nii.gz')
+args = parser.parse_args()
 
-dkt_df = pd.read_csv('/data/input/mindboggleCorticalLabels.csv')
+labels_path=args.labels
+dkt_path=args.dkt
+ct_path=args.ct
+gmd_path=args.gmd
 
-dkt_df = dkt_df.rename(columns={"Label.ID": "LabelID", "Label.Name": "LabelName"})
-ints = dkt_df.LabelID.values
-names = dkt_df.LabelName.to_numpy() #dkt_df.LabelName.values
-names = [name.replace('.', '_') for name in names]
+###############################################################################
+############   Calculate volume of each DKT region, output csv.    ############
+###############################################################################
 
-# Get the voxel size (mm3)
-pixdim = atlas.header['pixdim'][0:3]
-voxsize = np.prod(pixdim)
+# Get subject and session label from DKT image filename.
+sub=os.path.basename(dkt_path).split("_")[0]
+ses=os.path.basename(dkt_path).split("_")[1]
 
-# Calculate volume
-atlas_array = atlas.get_fdata()
-volvals = [atlas_array[atlas_array == int].shape[0]*voxsize for int in ints]
+# Load DKT labeled T1w image.
+dkt_img = nib.load(dkt_path)
 
-masker = NiftiLabelsMasker('/data/output/'+ses+'/'+sub+'_'+ses+'_DKTIntersection.nii.gz')
-masker.fit()
-cortvals = masker.transform('/data/output/'+ses+'/'+sub+'_'+ses+'_CorticalThickness.nii.gz')
-gmdvals = masker.transform('/data/output/'+ses+'/'+sub+'_'+ses+'_GMD.nii.gz')
+# Read in DKT label csv to pandas dataframe.
+label_df = pd.read_csv(labels_path)
+label_df = label_df.rename(columns={"Label.ID": "LabelId", "Label.Name": "LabelName"})
+label_ids = label_df.LabelId.values
+label_names = label_df.LabelName.to_numpy() #dkt_df.LabelName.values
+label_names = [name.replace('.', '_') for name in label_names]
 
-vol_names = ['mprage_jlf_vol_'+name for name in names]
-cort_names = ['mprage_jlf_ct_'+name for name in names]
-gmd_names = ['mprage_jlf_gmd_'+name for name in names]
+# Get the voxel size (in mm3).
+pixelDim = dkt_img.header['pixdim'][0:3]
+voxelSize = np.prod(pixelDim)
 
-colnames = [sublabel, 'seslabel']
-colnames.extend(vol_names)
-colnames.extend(cort_names)
-colnames.extend(gmd_names)
+# Calculate region volume for each DKT label.
+dkt_array = dkt_img.get_fdata()
+volume_values = [dkt_array[dkt_array == label_id].shape[0] * voxelSize for label_id in label_ids]
 
-vals = [sub.split('-')[1], ses.split('-')[1]]
-vals.extend(volvals)
-vals.extend(cortvals.tolist()[0])
-vals.extend(gmdvals.tolist()[0])
-out_df = pd.DataFrame(data=[vals], columns=colnames)
+# Make values list for output df (subjectId, sessionId, + volume values list)
+sub_ses = [sub.split('-')[1], ses.split('-')[1]]
+volume_values = sub_ses + volume_values
 
-out_df.to_csv('/data/output/'+ses+'/'+sub+'_'+ses+'_struc.csv', index=False)
+# Make columns list for output df
+columns = ['Subject Id', 'Session Id']
+columns.extend(label_names)
+
+# Combine columns and values into volume dataframe
+volume_df = pd.DataFrame(data=[volume_values], columns=columns)
+
+# Output volume dataframe to csv file
+outDir = os.path.dirname(dkt_path)
+volume_df.to_csv(outDir + '/' + sub + '_' + ses + '_Volume.csv', index=False)
+
+###############################################################################
+##### Optionally, calculate CT and GMD of each DKT region and output csv. #####
+###############################################################################
+
+# If either CT or GMD image was provided, fit DKT labels.
+if ct_path or gmd_path:
+    # Fit DKT labels
+    masker = NiftiLabelsMasker(dkt_img)
+    masker.fit()
+
+# If CT image was provided, also output csv of CT values by DKT region.
+if ct_path:
+    # Load cortical thickness image.
+    ct_img = nib.load(ct_path)
+    # Get cortical thickness values by DKT region.
+    ct_values = masker.transform(ct_img)
+    # Make values list for output df (subjectId, sessionId, + CT values list).
+    ct_values = sub_ses + ct_values.tolist()[0]    
+    # Combine columns and values into CT dataframe.
+    ct_df = pd.DataFrame(data=[ct_values], columns=columns)
+    # Output CT dataframe to csv file.
+    ct_df.to_csv(outDir + '/' + sub + '_' + ses + '_CorticalThickness.csv', index=False)
+
+# If CT image was provided, also output csv of GMD values by DKT region.
+if gmd_path: 
+    # Load GMD image.
+    gmd_img = nib.load(gmd_path)
+    # Get GMD values by DKT region.
+    gmd_values = masker.transform(gmd_img)
+    # Make values list for output df (subjectId, sessionId, + gmd values list).
+    gmd_values = sub_ses + gmd_values.tolist()[0]
+    # Combine columns and values into GMD dataframe.
+    gmd_df = pd.DataFrame(data=[gmd_values], columns=columns)
+    # Output GMD dataframe to csv file.
+    gmd_df.to_csv(outDir + '/' + sub + '_' + ses + '_GMD.csv', index=False)
