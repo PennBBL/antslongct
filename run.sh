@@ -20,7 +20,6 @@ sessions=`find ${InDir}/${sub}/ -type d -name "ses-*" | cut -d "/" -f 5`
 ############## Step 1. Get Native-to-GT space composite warp.  ################
 ###############################################################################
 
-# TODO: fix bug where inverse warp isn't set for subs in GT
 for ses in ${sessions}; do
   
   # Path if composite warp already exists. 
@@ -100,7 +99,7 @@ python /scripts/maskPriorsWarpedToSST.py ${sub}
 groupMaskInSST=`find ${OutDir} -name "${sub}_priorsMask.nii.gz"`
 
 ## TODO!: try making mask by running brain extraction on warped group priors instead of above.
-#maskedSST="${InDir}/${sub}/${sub}_BrainExtractionMask.nii.gz"
+maskedSST="${InDir}/${sub}/${sub}_BrainExtractionMask.nii.gz"
 
 # Copy priors to simpler name for easy submission to Atropos script.
 cp ${OutDir}/BrainstemPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior1.nii.gz
@@ -111,7 +110,7 @@ cp ${OutDir}/GMDeepPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior5.ni
 cp ${OutDir}/WMCorticalPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior6.nii.gz
 
 # Run Atropos on SST, using custom priors (weight = .25)
-antsAtroposN4.sh -d 3 -a ${SST} -x ${groupMaskInSST} -c 6 -o ${OutDir}/${sub}_ \
+antsAtroposN4.sh -d 3 -a ${SST} -x ${maskedSST} -c 6 -o ${OutDir}/${sub}_ \
   -w .25 -p ${OutDir}/prior%d.nii.gz
 
 # Delete copied priors.
@@ -151,10 +150,14 @@ for ses in ${sessions}; do
       -t ${SST_to_Native_warp}
   done
   
+  # OLD
   python /scripts/maskPriorsWarpedToSes.py ${sub} ${ses}
   groupMaskInSes=${OutDir}/${ses}/${sub}_${ses}_priorsMask.nii.gz
 
   # TODO: Try using (dialated!) native T1w brain mask for priors mask instead of above.
+  maskedT1w="${InDir}/fmriprep/ses-PNC1/anat/${sub}_${ses}_desc-brain_mask.nii.gz"
+  # Pad
+  ImageMath 3 ${InDir}/fmriprep/ses-PNC1/anat/${sub}_${ses}_desc-brain_mask_padded.nii.gz PadImage ${maskedT1w} 25
 
   # Copy warped posteriors to simpler name for easy submission to Atropos script.
   cp ${OutDir}/${ses}/SegmentationPosteriors1_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior1.nii.gz
@@ -169,7 +172,7 @@ for ses in ${sessions}; do
   # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
   # as priors for Atropos on the native T1w image (weight = .5).
   antsAtroposN4.sh -d 3 -a ${T1w} \
-    -x ${groupMaskInSes} -c 6 -o ${OutDir}/${ses}/${sub}_${ses}_ -w .5 \
+    -x ${maskedT1w} -c 6 -o ${OutDir}/${ses}/${sub}_${ses}_ -w .5 \
     -p ${OutDir}/${ses}/prior%d.nii.gz
   
   # Delete copied priors.
@@ -179,8 +182,9 @@ for ses in ${sessions}; do
 #####  Step 5. Get cortical thickness. Use CorticalGM posterior for GMD.  #####
 ###############################################################################
   
-  # Use cortical gray matter posterior as GMD image.
-  cp ${OutDir}/${ses}/${sub}_${ses}_SegmentationPosteriors4.nii.gz ${OutDir}/${ses}/${sub}_${ses}_GMD.nii.gz;
+  # OLD: Use cortical gray matter posterior as GMD image.
+  gmd="${OutDir}/${ses}/${sub}_${ses}_GMD.nii.gz"
+  cp ${OutDir}/${ses}/${sub}_${ses}_SegmentationPosteriors4.nii.gz ${gmd}
 
   # Run cortical thickness script
   segmentation=${OutDir}/${ses}/${sub}_${ses}_Segmentation.nii.gz
@@ -225,13 +229,14 @@ for ses in ${sessions}; do
   python /scripts/maskCT.py ${sub} ${ses} ${subLabel}
   
   # Take intersection of CT mask and the DKT label image to get labels that conform to gray matter.
+  ct="${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz"
   mask="${OutDir}/${ses}/${sub}_${ses}_CorticalThickness_mask.nii.gz"
   dkt="${OutDir}/${ses}/${sub}_${ses}_DKT.nii.gz"
   intersection="${OutDir}/${ses}/${sub}_${ses}_DKTIntersection_long.nii.gz"
   ImageMath 3 ${intersection} m ${dkt} ${mask}
   
   #ImageMath 3 LabelStats ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz ${OutDir}/${ses}/${sub}_${ses}_DKT.nii.gz
-  python /scripts/quantifyROIs.py ${sub} ${ses} ${subLabel}
+  python /scripts/quantifyROIs.py ${intersection} ${ct} ${gmd}
 
 ###############################################################################
 ######  Step 8. Clean up.                                                ######
