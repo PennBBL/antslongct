@@ -72,5 +72,5 @@ RUN chmod +x /scripts/*
 
 COPY mindboggleCorticalLabels.csv /data/input/mindboggleCorticalLabels.csv
 
-# Set the entrypoint
-ENTRYPOINT /scripts/run.sh
+# Set the entrypoint using exec format
+ENTRYPOINT ["/scripts/run.sh"]
