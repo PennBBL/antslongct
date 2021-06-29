@@ -50,7 +50,7 @@ label_df = pd.read_csv(labels_path)
 label_df = label_df.rename(columns={"Label.ID": "LabelId", "Label.Name": "LabelName"})
 label_ids = label_df.LabelId.values
 label_names = label_df.LabelName.to_numpy() #dkt_df.LabelName.values
-label_names = [name.replace('.', '_') for name in label_names]
+#label_names = [name.replace('.', '_') for name in label_names]
 
 # Get the voxel size (in mm3).
 pixelDim = dkt_img.header['pixdim'][0:3]
@@ -65,7 +65,7 @@ sub_ses = [sub.split('-')[1], ses.split('-')[1]]
 volume_values = sub_ses + volume_values
 
 # Make columns list for output df
-columns = ['Subject Id', 'Session Id']
+columns = ['Subject.Id', 'Session.Id']
 columns.extend(label_names)
 
 # Combine columns and values into volume dataframe
