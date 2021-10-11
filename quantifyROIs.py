@@ -24,7 +24,7 @@ parser.add_argument('-c', '--ct',
 parser.add_argument('-g', '--gmd',
                     help='full path to gray matter density image')                    
 parser.add_argument('-l', '--labels', 
-                    default='/data/input/mindboggleCorticalLabels.csv',
+                    default='/data/input/atlases/mindboggleCorticalLabels.csv',
                     help='full path to labels mapping csv')
 
 args = parser.parse_args()
@@ -73,7 +73,7 @@ volume_df = pd.DataFrame(data=[volume_values], columns=columns)
 
 # Output volume dataframe to csv file
 outDir = os.path.dirname(dkt_path)
-volume_df.to_csv(outDir + '/' + sub + '_' + ses + '_Volume.csv', index=False)
+volume_df.to_csv(f"{outDir}/{sub}_{ses}_Volume.csv", index=False)
 
 ###############################################################################
 ##### Optionally, calculate CT and GMD of each DKT region and output csv. #####
@@ -96,7 +96,7 @@ if ct_path:
     # Combine columns and values into CT dataframe.
     ct_df = pd.DataFrame(data=[ct_values], columns=columns)
     # Output CT dataframe to csv file.
-    ct_df.to_csv(outDir + '/' + sub + '_' + ses + '_CorticalThickness.csv', index=False)
+    ct_df.to_csv(f"{outDir}/{sub}_{ses}_CorticalThickness.csv", index=False)
 
 # If CT image was provided, also output csv of GMD values by DKT region.
 if gmd_path: 
@@ -109,4 +109,4 @@ if gmd_path:
     # Combine columns and values into GMD dataframe.
     gmd_df = pd.DataFrame(data=[gmd_values], columns=columns)
     # Output GMD dataframe to csv file.
-    gmd_df.to_csv(outDir + '/' + sub + '_' + ses + '_GMD.csv', index=False)
+    gmd_df.to_csv(f"{outDir}/{sub}_{ses}_GMD.csv", index=False)
