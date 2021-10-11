@@ -16,6 +16,7 @@ usage() {
 		                 [--project  <PROJECT NAME>]
 		                 [--seed <RANDOM SEED>] 
 		                 [--manual-step <STEP NUM>]
+                         [--cleanup]
 		                 SUB
 		      
 		      positional arguments:
@@ -34,6 +35,7 @@ usage() {
 		                              Use multiple times to select multiple steps. (e.g. -m 2 -m 3)
 		      -p  | --project         Project name for group template naming. (Default: "Group")
 		      -s  | --seed            Random seed for ANTs registration.
+              -x  | --cleanup         Delete unnecessary output files when finished.
 		      -v  | --version         Print version and exit.
 
 	HELP_MESSAGE
@@ -71,6 +73,13 @@ log_progress() {
     echo -e "************************************************************\n" | tee -a /dev/stderr
 }
 
+# Helper function for cleanup to delete only if file exists.
+delete_if_exists(){
+    f=$1
+    if [ -e $f ]; then
+        rm -rf $f
+    fi
+}
 ###############################################################################
 ##############    1. Get Native-to-GT space composite warp.    ################
 ###############################################################################
@@ -468,6 +477,7 @@ runAtroposSST=""    # -m 2
 runAtroposNative="" # -m 3
 runWarpLabels=""    # -m 4
 runQuantify=""      # -m 5
+runCleanUp=""
 
 # Parse cmd line options
 PARAMS=""
@@ -530,6 +540,10 @@ while (("$#")); do
             echo "$0: Error: Argument for $1 is missing" >&2
             exit 1
         fi
+        ;;
+    -x | --cleanup)
+        runCleanUp=1
+        shift
         ;;
     -v | --version)
         echo $VERSION
@@ -635,28 +649,12 @@ fi
 
 # Clean up and remove unnecessary files
 if [[ ${runCleanUp ]]; then
-    rm -rf "${OutDir}/priors"
-    rm -rf "${SubDir}/*Segmentation*"
-    rm -rf "${SubDir}/*WarpedTo${projectName}Template*"
+    delete_if_exists "${OutDir}/priors"
+    delete_if_exists "${SubDir}/*Segmentation*"
+    delete_if_exists "${SubDir}/*WarpedTo${projectName}Template*"
     for ses in $sessions; do
-        rm -rf "${SubDir}/sessions/${ses}/*Composite*"
-        rm -rf "${SubDir}/sessions/${ses}/*WarpedToSST*"
+        delete_if_exists "${SubDir}/sessions/${ses}/*Composite*"
+        delete_if_exists "${SubDir}/sessions/${ses}/*WarpedToSST*"
 fi
 
 log_progress "ANTsLongCT v${VERSION}: FINISHED SUCCESSFULLY"
-
-###############################################################################
-######  OLD: Step 8. Clean up.                                           ######
-###############################################################################
-
-# # Remove unnecessary files (full output way too big)
-# rm ${OutDir}/${ses}/*_CorticalThickness_mask.nii.gz
-# rm ${OutDir}/${ses}/*_priorsMask.nii.gz
-# rm ${OutDir}/${ses}/*Segmentation*
-
-# # Remove unnecessary files
-# rm ${OutDir}/*Prior*
-# rm ${OutDir}/*Segmentation*
-# rm ${OutDir}/*_Normalizedto${projectName}Template_*
-# rm ${OutDir}/*_priorsMask.nii.gz
- 
