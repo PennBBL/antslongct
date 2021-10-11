@@ -1,399 +1,662 @@
+#!/bin/bash
 
-# Bind
-# 1.) Group template directory (template, priors and DKT labels needed)
-# 2.) Single subect template directory directory (SST and padded/scaled T1w images needed)
-# 3.) Output directory
+# ANTsLongCT: Cortical Thickness, GMD, and Volume calculations by DKT region.
+# Maintainer: Katja Zoner
+# Updated:    10/04/2021
 
-InDir=/data/input
-OutDir=/data/output 
-
-tmpdir="${OutDir}/tmp"
-mkdir ${tmpdir}
-
-###############################################################################
-########################      Parse Cmd Line Args      ########################
-###############################################################################
 VERSION=0.1.0
 
-usage () {
-    cat <<- HELP_MESSAGE
-      usage:  $0 [--help] [--version] 
-                 [--project  <PROJECT NAME>] [--seed <RANDOM SEED>] 
-                 [--jfl-on-gt | --jlf-on-sst ]
+###############################################################################
+##########################      Usage Function      ###########################
+###############################################################################
+usage() {
+    cat <<-HELP_MESSAGE
+		      usage:  $0 [--help] [--version] 
+		                 [--jlf-on-gt | --jlf-on-sst ]
+		                 [--project  <PROJECT NAME>]
+		                 [--seed <RANDOM SEED>] 
+		                 [--manual-step <STEP NUM>]
+		                 SUB
+		      
+		      positional arguments:
+		        SUB |                 Subject label
 
-      optional arguments:
-      -h  | --help        Print this message and exit.
-      -v  | --version     Print version and exit.
-      -p  | --project     Project name for template naming.
-      -s  | --seed        Random seed for ANTs registration.
+		      optional arguments:
+		      -h  | --help            Print this message and exit.
+		      -g  | --jlf-on-gt       Set if JLF was run on GT. (Default: False)
+		      -j  | --jlf-on-sst      Set if JLF was run on SST. (Default: False)
+		      -m  | --manual-step     Manually identify which steps to run. 
+		                                1: construct composite warp, 
+		                                2: run Atropos on SST, 
+		                                3: run Atropos on native T1w,
+		                                4: warp labels to native T1w space,
+		                                5: quantify cortical thickness, GMD, volume in ROIs.
+		                              Use multiple times to select multiple steps. (e.g. -m 2 -m 3)
+		      -p  | --project         Project name for group template naming. (Default: "Group")
+		      -s  | --seed            Random seed for ANTs registration.
+		      -v  | --version         Print version and exit.
 
-HELP_MESSAGE
+	HELP_MESSAGE
 }
 
-# Set default values for cmd line args
-projectName=Group
-seed=1
-
-# Parse cmd line options
-while (( "$#" )); do
-  case "$1" in
-    -h | --help)
-        usage
-        exit 0
-      ;;
-    -v | --version)
-        echo $VERSION
-        exit 0
-      ;;
-    -p | --project)
-      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        projectName=$2
-        shift 2
-      else
-        echo "$0: Error: Argument for $1 is missing" >&2
-        exit 1
-      fi
-      ;;
-    -s | --seed)
-      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        seed=$2
-        shift 2
-      else
-        echo "$0: Error: Argument for $1 is missing" >&2
-        exit 1
-      fi
-      ;;
-    -*|--*=) # unsupported flags
-      echo "$0: Error: Unsupported flag $1" >&2
-      exit 1
-      ;;
-    *) # parse positional arguments
-      PARAMS="$PARAMS $1"
-      shift
-      ;;
-  esac
-done
-
-# Set env vars for ANTs
-export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-export ANTS_RANDOM_SEED=$seed 
-
-# Set ANTs path
-export ANTSPATH=/opt/ants/bin/
-export PATH=${ANTSPATH}:$PATH
-export LD_LIBRARY_PATH=/opt/ants/lib
-
 ###############################################################################
-######################      Set Up Error Handling!      #######################
+###############      Error Handling and Cleanup Functions      ################
 ###############################################################################
-
-set -euo pipefail
-trap 'exit' EXIT
-trap 'control_c' SIGINT
-
-exit(){
-  err=$?
-  if [ $err -eq 0 ]; then
-    cleanup
-    echo "$0: ANTsLongCT finished successfully!"
-  else
-    echo "$0: ${PROGNAME:-}: ${1:-"Exiting with error code $err"}" 1>&2
-    cleanup
-  fi
+clean_exit() {
+    err=$?
+    if [ $err -eq 0 ]; then
+        echo "$0: ANTsLongCT finished successfully!"
+        cleanup
+    else
+        echo "$0: ${PROGNAME:-}: ${1:-"Exiting with error code $err"}" 1>&2
+        cleanup
+    fi
+    exit $err
 }
 
 cleanup() {
-  echo -e "\nRunning cleanup ..."
-  rm -rf $tmpdir
-  echo "Done."
+    echo -e "\nRunning cleanup ..."
+    rm -rf $tmpdir
+    echo "Done."
 }
 
-control_c() 
-{
-  echo -en "\n\n*** User pressed CTRL + C ***\n\n"
+control_c() {
+    echo -en "\n\n*** User pressed CTRL + C ***\n\n"
+}
+
+# Write progress message ($1) to both stdout and stderrs
+log_progress() {
+    echo -e "\n************************************************************" | tee -a /dev/stderr
+    echo -e "***************     $1" | tee -a /dev/stderr
+    echo -e "************************************************************\n" | tee -a /dev/stderr
 }
 
 ###############################################################################
-############## Step 1. Get Native-to-GT space composite warp.  ################
+##############    1. Get Native-to-GT space composite warp.    ################
 ###############################################################################
-echo -e "\nCreating native to group template composite warp....\n"
-PROGNAME="antsRegistrationSyN"
+construct_composite_warps() {
+    log_progress "BEGIN: Constructing native-to-group template composite warps. \n"
+    PROGNAME="construct_composite_warp()"
+    
+    # Get group template and single-subject template for use in later steps.
+    GT=$(find ${OutDir} -maxdepth 1 -name "*template0.nii.gz")
+    SST=$(find ${SubDir} -maxdepth 1 -name "*template0.nii.gz")
 
-TemplateDir=`find ${InDir} -type d -name "antspriors*"`
-GT=`find ${TemplateDir} -name "*template0.nii.gz"`
-SST=`find ${InDir}/sub* -name "*template0.nii.gz"`
-sub=`echo ${SST} | cut -d "/" -f 5 | cut -d "_" -f 1`
-sessions=`find ${InDir}/${sub}/ -type d -name "ses-*" | cut -d "/" -f 5`
+    for ses in ${sessions}; do
+        SesDir="${SubDir}/sessions/${ses}"
 
-for ses in ${sessions}; do
-  
-  # Path if composite warp already exists. 
-  composite_warp="${TemplateDir}/SST/${sub}_${ses}_Normalizedto${projectName}TemplateCompositeWarp.nii.gz"
-  
-  # If subject was part of group template, Native-to-GT composite warp will already exist.
-  if [ -f ${composite_warp} ]; then
+        # Register SST to GT. Fixed: GT, Moving: SST.
+        antsRegistrationSyN.sh \
+            -d 3 \
+            -f ${GT} \
+            -m ${SST} \
+            -o ${SubDir}/${sub}_to${projectName}Template_
+
+        # Get warps and affines from Native to SST to GT space.
+        #? : hard-coding 0/1 naming convention ok? --> Seems fine.
+        SST_to_GT_warp=$(find ${SubDir} -name "${sub}_to*Template_1Warp.nii.gz")
+        SST_to_GT_affine=$(find ${SubDir} -name "${sub}_to*Template_0GenericAffine.mat")
+        Native_to_SST_warp=$(find ${SesDir} -name "${sub}_${ses}_toSST_Warp.nii.gz")
+        Native_to_SST_affine=$(find ${SesDir} -name "${sub}_${ses}_toSST_Affine.txt")
+
+        composite_warp=${SesDir}/${sub}_${ses}_to${projectName}Template_CompositeWarp.nii.gz
+
+        # Calculate composite warp from Native T1w space to Group Template space.
+        antsApplyTransforms \
+            -d 3 \
+            -e 0 \
+            -o [${composite_warp}, 1] \
+            -r ${GT} \
+            -t ${SST_to_GT_warp} \
+            -t ${SST_to_GT_affine} \
+            -t ${Native_to_SST_warp} \
+            -t ${Native_to_SST_affine}
+    done
+
+    log_progress "END: Finished constructing native-to-group template composite warps."
+}
+
+###############################################################################
+#######  2.1) Transform priors from Group Template space to SST space.   ######
+###############################################################################
+transform_priors_to_sst() {
+    log_progress "BEGIN: Transforming priors from GT to SST space."
+    PROGNAME="transform_priors_to_sst()"
+
+    # Tissue priors in GT space
+    priors=$(find ${OutDir}/priors -name "*prior.nii.gz")
+
+    # Get SST to use as reference image.
+    SST=$(find ${SubDir} -maxdepth 1 -name "*template0.nii.gz")
+
+    # Get inverse warp and affine to go from GT space to SST space.
+    SST_to_GT_affine=$(find ${SubDir} -name "${sub}_to*Template_0GenericAffine.mat")
+    GT_to_SST_warp=$(find ${SubDir} -name "${sub}_to*Template_*InverseWarp.nii.gz")
+
+    # Make subdir for transformed priors in subject dir.
+    PriorsDir="${SubDir}/priors"
+    mkdir -p ${PriorsDir}
+
+    # Transform each prior from GT space to SST space.
+    for prior in ${priors}; do
+
+        # Get tissue type
+        tissue=$(basename ${prior} | cut -d "_" -f 2 | cut -d "-" -f 1)
+
+        antsApplyTransforms \
+            -d 3 \
+            -e 0 \
+            -i ${prior} \
+            -n Gaussian \
+            -o [${PriorsDir}/${tissue}Prior_WarpedTo_${sub}_template.nii.gz, 0] \
+            -r ${SST} \
+            -t [${SST_to_GT_affine},1] \
+            -t ${GT_to_SST_warp}
+    done
+
+    log_progress "END: Finished transforming priors from GT to SST space."
+}
+
+###############################################################################
+#######  2.2) Atropos segmentation on SST, using custom tissue priors.   ######
+###############################################################################
+atropos_on_sst() {
+    log_progress "BEGIN: Running Atropos segmentation on the SST."
+    PROGNAME="atropos_on_sst()"
+
+    # OLD: Create mask from any non-zero voxels in all six warped priors.
+    # python /scripts/maskPriorsWarpedToSST.py ${sub}
+    # groupMaskInSST=`find ${OutDir} -name "${sub}_priorsMask.nii.gz"`
     
-    SST_to_GT_warp=`find ${TemplateDir}/ -name "${projectName}Template_${sub}_template*Warp.nii.gz" -not -name "*Inverse*"`
-    SST_to_GT_affine=`find ${TemplateDir}/ -name "${projectName}Template_${sub}_template*Affine.mat" -not -name "*Inverse*"`
-    GT_to_SST_warp=`find ${TemplateDir} -name "${projectName}Template_${sub}_template*InverseWarp.nii.gz"`
+    # Get SST to use as reference image.
+    SST=$(find ${SubDir} -maxdepth 1 -name "*template0.nii.gz")
+    # NEW! try making mask by running brain extraction on warped group priors instead of above.
+    maskedSST="${SubDir}/${sub}_BrainExtractionMask.nii.gz"
+
+    # Copy priors to simpler name for easy submission to Atropos script.
+    cp ${SubDir}/priors/BrainstemPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior1.nii.gz
+    cp ${SubDir}/priors/CSFPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior2.nii.gz
+    cp ${SubDir}/priors/CerebellumPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior3.nii.gz
+    cp ${SubDir}/priors/GMCorticalPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior4.nii.gz
+    cp ${SubDir}/priors/GMDeepPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior5.nii.gz
+    cp ${SubDir}/priors/WMCorticalPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior6.nii.gz
+
+    # Run Atropos on SST, using custom priors (weight = .25)
+    antsAtroposN4.sh \
+        -d 3 \
+        -c 6 \
+        -w .25 \
+        -a ${SST} \
+        -x ${maskedSST} \
+        -o ${SubDir}/${sub}_ \
+        -p ${tmpdir}/prior%d.nii.gz
+
+    # Delete copied priors.
+    rm ${tmpdir}/prior*.nii.gz
+
+    log_progress "END: Finished running Atropos segmentation on the SST."
+}
+
+###############################################################################
+######      3.1) Warp segmentation posteriors (from first Atropos     #########
+######         run) from SST space to native T1w space.               #########
+###############################################################################
+transform_posteriors_to_native() {
+    log_progress "BEGIN: Transforming segmentation posteriors from SST to native space."
+    PROGNAME="transform_posteriors_to_native()"
+
+    # Get segmentation posteriors from first Atropos run.
+    posteriors=$(find ${SubDir} -name "${sub}_SegmentationPosteriors*.nii.gz")
+
+    # For each session, warp segmentation posteriors from SST to session space.
+    for ses in ${sessions}; do
+        SesDir="${SubDir}/sessions/${ses}"
+
+        # Get Native T1w image
+        t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
+        
+        # Get SST-to-Native warp/affine
+        SST_to_Native_warp=$(find ${SesDir} -name "${sub}_${ses}_toSST_InverseWarp.nii.gz")
+        Native_to_SST_affine=$(find ${SesDir} -name "${sub}_${ses}_toSST_Affine.txt")
+        
+
+        for posterior in ${posteriors}; do
+            name=$(basename ${posterior} | cut -d . -f 1)
+            posterior_warped="${tmpdir}/${name}_WarpedToNative_${ses}.nii.gz"
+
+            antsApplyTransforms \
+                -d 3 \
+                -e 0 \
+                -n Gaussian \
+                -i ${posterior} \
+                -o [${posterior_warped}, 0] \
+                -r ${t1w} \
+                -t [${Native_to_SST_affine},1] \
+                -t ${SST_to_Native_warp}
+        done
+
+    done
+
+    log_progress "END: Finished transforming segmentation posteriors from SST to native space."
+}
+
+###############################################################################
+#######      3.2) Atropos segmentation on Native T1w img. Priors are    #######
+#######        segmentation posteriors from first Atropos run.          #######
+###############################################################################
+atropos_on_native() {
+    log_progress "BEGIN: Running Atropos segmentation on the native T1w image."
+    PROGNAME="atropos_on_native()"
+
+    for ses in ${sessions}; do
+        SesDir="${SubDir}/sessions/${ses}"
+        mkdir -p ${SesDir}/atropos
+
+        # OLD:
+        # python /scripts/maskPriorsWarpedToSes.py ${sub} ${ses}
+        # groupMaskInSes=${OutDir}/${ses}/${sub}_${ses}_priorsMask.nii.gz
+
+        # NEW:
+        # Try using (dialated? padded?) native T1w brain mask for priors mask instead of above.
+        # maskedT1w="${InDir}/fmriprep/${ses}/anat/${sub}_${ses}_desc-brain_mask.nii.gz"
+        t1w_mask="${SesDir}/${sub}_${ses}_Brain-mask.nii.gz"
+
+        # Get Native T1w image
+        t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
+
+        # Pad
+        # ImageMath 3 ${InDir}/fmriprep/${ses}/anat/${sub}_${ses}_desc-brain_mask_padded.nii.gz PadImage ${maskedT1w} 25
+        # TODO: try BE on t1w pad scale
+
+        # Copy warped posteriors to simpler name for easy submission to Atropos script.
+        cp ${tmpdir}/sub-*_SegmentationPosteriors1_*.nii.gz ${tmpdir}/prior1.nii.gz
+        cp ${tmpdir}/sub-*_SegmentationPosteriors2_*.nii.gz ${tmpdir}/prior2.nii.gz
+        cp ${tmpdir}/sub-*_SegmentationPosteriors3_*.nii.gz ${tmpdir}/prior3.nii.gz
+        cp ${tmpdir}/sub-*_SegmentationPosteriors4_*.nii.gz ${tmpdir}/prior4.nii.gz
+        cp ${tmpdir}/sub-*_SegmentationPosteriors5_*.nii.gz ${tmpdir}/prior5.nii.gz
+        cp ${tmpdir}/sub-*_SegmentationPosteriors6_*.nii.gz ${tmpdir}/prior6.nii.gz
+
+        # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
+        # as priors for Atropos on the native T1w image (weight = .5).
+        antsAtroposN4.sh \
+            -d 3 \
+            -c 6 \
+            -w .5 \
+            -a ${t1w} \
+            -x ${t1w_mask} \
+            -o ${SesDir}/atropos/${sub}_${ses}_ \
+            -p ${tmpdir}/prior%d.nii.gz
+
+        # Delete copied priors.
+        rm ${tmpdir}/prior*.nii.gz
+
+        prefix="${SesDir}/atropos/${sub}_${ses}"
+        mv "${prefix}_SegmentationPosteriors1.nii.gz" "${prefix}_Segmentation-Brainstem.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors2.nii.gz" "${prefix}_Segmentation-CSF.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors3.nii.gz" "${prefix}_Segmentation-Cerebellum.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors4.nii.gz" "${prefix}_Segmentation-GMCortical.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors5.nii.gz" "${prefix}_Segmentation-GMDeep.nii.gz"
+        mv "${prefix}_SegmentationPosteriors6.nii.gz" "${prefix}_Segmentation-WMCortical.nii.gz" 
+
+    done
     
-    # Copy composite warp and SST-to-GT transforms into output dir.
-    cp ${composite_warp} ${OutDir};
-    cp ${SST_to_GT_warp} ${OutDir}/${sub}_Normalizedto${projectName}Template_Warp.nii.gz;
-    cp ${SST_to_GT_affine} ${OutDir}/${sub}_Normalizedto${projectName}Template_Affine.mat;
-    cp ${GT_to_SST_warp} ${OutDir}/${sub}_Normalizedto${projectName}Template_InverseWarp.nii.gz;
-  
-  # Else, the subject wasn't part of the group template, so the composite won't exist yet.
-  # Register SST to GT then use antsApplyTransforms to create composite warp.
-  else
-    
-    # Register SST to GT. Fixed: GT, Moving: SST.
-    antsRegistrationSyN.sh -d 3 -f ${TemplateDir}/${projectName}Template_template0.nii.gz \
-      -m ${InDir}/${sub}/${sub}_template0.nii.gz \
-      -o ${OutDir}/${sub}_Normalizedto${projectName}Template_
-    
-    SST_to_GT_warp=`find ${OutDir}/ -name "${sub}_Normalizedto${projectName}Template_*Warp.nii.gz" -not -name "*Inverse*"`
-    SST_to_GT_affine=`find ${OutDir}/ -name "${sub}_Normalizedto${projectName}Template_*Affine.mat" -not -name "*Inverse*"`
-    Native_to_SST_warp=`find ${InDir}/${sub}/${ses}/ -name "*padscale*Warp.nii.gz" -not -name "*Inverse*"`;
-    Native_to_SST_affine=`find ${InDir}/ -name "${sub}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
-    
-    # Calculate composite warp from Native T1w space to Group Template space.
-    antsApplyTransforms \
-      -d 3 \
-      -e 0 \
-      -o [${OutDir}/${sub}_${ses}_Normalizedto${projectName}TemplateCompositeWarp.nii.gz, 1] \
-      -r ${TemplateDir}/${projectName}Template_template0.nii.gz \
-      -t ${SST_to_GT_warp} \
-      -t ${SST_to_GT_affine} \
-      -t ${Native_to_SST_warp} \
-      -t ${Native_to_SST_affine};
-  fi;
+    log_progress "END: Finished running Atropos segmentation on the native T1w image."
+}
+
+###############################################################################
+########    4. Warp DKT labels from GT space to native T1w space.      ########
+###############################################################################
+warp_gt_labels() {
+    log_progress "BEGIN: Warping DKT labels from group template to native T1w space."
+    PROGNAME="warp_gt_labels()"
+
+    for ses in ${sessions}; do
+        SesDir="${SubDir}/sessions/${ses}"
+
+        # Get group template and single-subject template
+        GT=$(find ${OutDir} -maxdepth 1 -name "*template0.nii.gz")
+        SST=$(find ${SubDir} -maxdepth 1 -name "*template0.nii.gz")
+        t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
+
+        # Get warps to build compositve inverse warp
+        Native_to_SST_affine=$(find ${SesDir} -name "${sub}_${ses}_toSST_Affine.txt")
+        SST_to_Native_warp=$(find ${SesDir} -name "${sub}_${ses}_toSST_*InverseWarp.nii.gz")
+        SST_to_GT_affine=$(find ${SubDir} -name "${sub}_to*Template_0GenericAffine.mat")
+        GT_to_SST_warp=$(find ${SubDir} -name "${sub}_to*Template_*InverseWarp.nii.gz")
+
+        GT_to_Native_warp="${SesDir}/${sub}_${ses}_to${projectName}Template_CompositeInverseWarp.nii.gz"
+
+        # Calculate the composite inverse warp from GT to native T1w space.
+        # TODO: BUG (FIXED NOW): Reference img should be t1w, not GT! 
+        antsApplyTransforms \
+            -d 3 \
+            -e 0 \
+            -o [${GT_to_Native_warp}, 1] \
+            -r ${t1w} \
+            -t [${Native_to_SST_affine}, 1] \
+            -t ${SST_to_Native_warp} \
+            -t [${SST_to_GT_affine}, 1] \
+            -t ${GT_to_SST_warp}
+
+        # Get DKT-labeled GT image
+        GT_labels="${OutDir}/${projectName}Template_DKT.nii.gz"
+        Native_labels="${SesDir}/${sub}_${ses}_DKT.nii.gz"
+
+        # Transform labels from group template to T1w space
+        # NOTE: use -n 'Multilabel' interpolation for labeled image to maintain integer labels!
+        antsApplyTransforms \
+            -d 3 \
+            -e 0 \
+            -n Multilabel \
+            -i ${GT_labels} \
+            -o [${Native_labels}, 0] \
+            -r ${t1w} \
+            -t ${GT_to_Native_warp}
+
+    done
+
+    log_progress "END: Finished warping DKT labels to native T1w space."
+}
+
+warp_sst_labels() {
+
+    log_progress "BEGIN: Warping DKT labels from subject template to native T1w space."
+    PROGNAME="warp_sst_labels()"
+
+    for ses in ${sessions}; do
+        SesDir="${SubDir}/sessions/${ses}"
+
+        # Get group template and single-subject template
+        SST=$(find ${SubDir} -maxdepth 1 -name "*template0.nii.gz")
+        t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
+
+        # Get SST-to-Native warp/affine
+        Native_to_SST_affine=$(find ${SesDir} -name "${sub}_${ses}_toSST_Affine.txt")
+        SST_to_Native_warp=$(find ${SesDir} -name "${sub}_${ses}_toSST_*InverseWarp.nii.gz")
+
+        # Get DKT-labeled SST image
+        SST_labels="${SubDir}/${sub}_DKT.nii.gz"
+        Native_labels="${SesDir}/${sub}_${ses}_DKT.nii.gz"
+
+        # Transform labels from group template to T1w space
+        # NOTE: use -n 'Multilabel' interpolation for labeled image to maintain integer labels!
+        antsApplyTransforms \
+            -d 3 \
+            -e 0 \
+            -n Multilabel \
+            -i ${SST_labels} \
+            -o [${Native_labels}, 0] \
+            -r ${t1w} \
+            -t [${Native_to_SST_affine}, 1] \
+            -t ${SST_to_Native_warp}
+
+    done
+
+    log_progress "END: Finished warping DKT labels to native T1w space."
+}
+
+###############################################################################
+######    5. Get cortical thickness and GMD. Quantify regional values.   ######                                   ######
+###############################################################################
+quantify() {
+    log_progress "BEGIN: Calculating cortical thickness and GMD, and quantifying regional values."
+    PROGNAME="quantify()"
+
+    for ses in $sessions; do
+        SesDir="${SubDir}/sessions/${ses}"
+
+        # Copy posteriors name format required by do_antsxnet_thickness.py
+        prefix="${SesDir}/atropos/${sub}_${ses}"
+        cp  "${prefix}_Segmentation-Brainstem.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors1.nii.gz"
+        cp  "${prefix}_Segmentation-CSF.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors2.nii.gz" 
+        cp  "${prefix}_Segmentation-Cerebellum.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors3.nii.gz"
+        cp  "${prefix}_Segmentation-GMCortical.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors4.nii.gz"
+        cp  "${prefix}_Segmentation-GMDeep.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors5.nii.gz"
+        cp  "${prefix}_Segmentation-WMCortical.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors6.nii.gz"
+        
+        # Calculate cortical thickness using the segmentation image via DiReCT.
+        t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
+        segmentation="${SesDir}/atropos/${sub}_${ses}_Segmentation.nii.gz"
+        posteriors=$(find ${tmpdir} -name "${sub}_${ses}_SegmentationPosteriors*.nii.gz")
+
+        python /opt/bin/do_antsxnet_thickness.py \
+            -a ${t1w} \
+            -s ${segmentation} \
+            -p ${posteriors} \
+            -o ${SesDir}/${sub}_${ses}_ \
+            -t 1
+
+        # Get cortical thickness mask.
+        # ImageMath 3 ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness_mask.nii.gz TruncateImageIntensity ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz binary-maskImage
+        python /scripts/maskCT.py ${sub} ${ses}
+
+        # Take intersection of CT mask and the DKT label image to get labels that conform to gray matter voxels.
+        ct="${SesDir}/${sub}_${ses}_CorticalThickness.nii.gz"
+        mask="${SesDir}/${sub}_${ses}_CorticalThickness-mask.nii.gz"
+        dkt="${SesDir}/${sub}_${ses}_DKT.nii.gz"
+        intersection="${SesDir}/${sub}_${ses}_CT-DKT-Intersection.nii.gz"
+        ImageMath 3 ${intersection} m ${dkt} ${mask}
+
+        # Get GMD image.
+        # TODO: Talk to Stathis r.e. GMD calculations
+        # GMD: https://github.com/PennBBL/xcpEngine/blob/master/modules/gmd/gmd.mod
+        # OLD: Use cortical gray matter posterior as GMD image.
+        gmd="${SesDir}/${sub}_${ses}_GMD.nii.gz"
+        cp ${SesDir}/atropos/${sub}_${ses}_Segmentation-GMCortical.nii.gz ${gmd}
+
+        # Quantify ROIs in terms of volume, cortical thickeness, and gray matter density.
+        #ImageMath 3 LabelStats ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz ${OutDir}/${ses}/${sub}_${ses}_DKT.nii.gz
+        python /scripts/quantifyROIs.py -d ${intersection} -c ${ct} -g ${gmd}
+
+    done
+
+    log_progress "END: Finished regional values for volume, cortical thickness, and gray matter density."
+}
+
+###############################################################################
+##########################         MAIN: SETUP        #########################
+###############################################################################
+
+# Set default cmd line args
+projectName=Group
+seed=1
+labelsOnGT=""
+labelsOnSST=""
+runAll=1            # Default to running all if -m option not used.
+runCompWarps=""     # -m 1
+runAtroposSST=""    # -m 2
+runAtroposNative="" # -m 3
+runWarpLabels=""    # -m 4
+runQuantify=""      # -m 5
+
+# Parse cmd line options
+PARAMS=""
+while (("$#")); do
+    case "$1" in
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    -g | --jlf-on-gt)
+        labelsOnGT=1
+        shift
+        ;;
+    -j | --jlf-on-sst)
+        labelsOnSST=1
+        shift
+        ;;
+    -m | --manual-step)
+        if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
+            step=$2
+            if [[ "$step" == "1" ]]; then
+                runAll=""
+                runCompWarps=1
+            elif [[ "$step" == "2" ]]; then
+                runAll=""
+                runAtroposSST=1
+            elif [[ "$step" == "3" ]]; then
+                runAll=""
+                runAtroposNative=1
+            elif [[ "$step" == "4" ]]; then
+                runAll=""
+                runWarpLabels=1
+            elif [[ "$step" == "5" ]]; then
+                runAll=""
+                runQuantify=1
+            else
+                echo "Error: $step is not a valid value for the --manual-step flag."
+                exit 1
+            fi
+            shift 2
+        else
+            echo "$0: Error: Argument for $1 is missing" >&2
+            exit 1
+        fi
+        ;;
+    -p | --project)
+        if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
+            projectName=$2
+            shift 2
+        else
+            echo "$0: Error: Argument for $1 is missing" >&2
+            exit 1
+        fi
+        ;;
+    -s | --seed)
+        if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
+            seed=$2
+            shift 2
+        else
+            echo "$0: Error: Argument for $1 is missing" >&2
+            exit 1
+        fi
+        ;;
+    -v | --version)
+        echo $VERSION
+        exit 0
+        ;;
+    -* | --*=) # unsupported flags
+        echo "$0: Error: Unsupported flag $1" >&2
+        exit 1
+        ;;
+    *) # parse positional arguments
+        PARAMS="$PARAMS $1"
+        shift
+        ;;
+    esac
 done
 
-###############################################################################
-####### Step 2. Transform priors from Group Template space to SST space. ######
-###############################################################################
-echo -e "\nTransforming priors from GT to SST space....\n"
-PROGNAME="antsApplyTransforms"
+# Set positional arguments (subject list) in their proper place
+eval set -- "$PARAMS"
 
-# Tissue priors in GT space
-priors=`find ${TemplateDir} -name "*Template_prior.nii.gz"`
+# Get subject label passed in via cmd line.
+sub="$@"
 
-# Find inverse warp to go from GT space to SST space.
-GT_to_SST_warp=`find ${OutDir} -name "${sub}_Normalizedto${projectName}Template_*InverseWarp.nii.gz"`
+# Check that one subject was provided.
+if [[ $(echo $sub | wc -w) -ne 1 ]]; then
+    echo "Error: Please provide the label for subject to be processed."
+    exit 1
+fi
 
-# Transform priors from GT space to SST space.
-for prior in ${priors}; do
-  
-  # Get tissue type
-  tissue=`echo ${prior} | cut -d "/" -f 6 | cut -d "_" -f 1`;
+# Set env vars for ANTs
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
+export ANTS_RANDOM_SEED=$seed
 
-  antsApplyTransforms \
-    -d 3 -e 0 -i ${prior} \
-    -n Gaussian \
-    -o [${OutDir}/${tissue}Prior_Normalizedto_${sub}_template.nii.gz,0] \
-    -r ${SST} \
-    -t [${SST_to_GT_affine},1] \
-    -t ${GT_to_SST_warp}
-done
+# Set ANTs path
+export ANTSPATH=/opt/ants/bin
+export PATH=${ANTSPATH}:$PATH
+export LD_LIBRARY_PATH=/opt/ants/lib
 
-###############################################################################
-####### Step 3. Atropos segmentation on SST, using custom tissue priors. ######
-###############################################################################
-echo -e "\nRunning Atropos segmentation on the SST....\n"
-PROGNAME="antsAtroposN4"
+# Make tmp dir
+tmpdir="/data/output/tmp"
+mkdir -p ${tmpdir}
 
-# OLD: Create mask from any non-zero voxels in all six warped priors.
-python /scripts/maskPriorsWarpedToSST.py ${sub}
-groupMaskInSST=`find ${OutDir} -name "${sub}_priorsMask.nii.gz"`
-
-## TODO!: try making mask by running brain extraction on warped group priors instead of above.
-maskedSST="${InDir}/${sub}/${sub}_BrainExtractionMask.nii.gz"
-
-# Copy priors to simpler name for easy submission to Atropos script.
-cp ${OutDir}/BrainstemPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior1.nii.gz
-cp ${OutDir}/CSFPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior2.nii.gz
-cp ${OutDir}/CerebellumPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior3.nii.gz
-cp ${OutDir}/GMCorticalPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior4.nii.gz
-cp ${OutDir}/GMDeepPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior5.nii.gz
-cp ${OutDir}/WMCorticalPrior_Normalizedto_${sub}_template.nii.gz ${OutDir}/prior6.nii.gz
-
-# Run Atropos on SST, using custom priors (weight = .25)
-antsAtroposN4.sh -d 3 -a ${SST} -x ${maskedSST} -c 6 -o ${OutDir}/${sub}_ \
-  -w .25 -p ${OutDir}/prior%d.nii.gz
-
-# Delete copied priors.
-rm ${OutDir}/prior*.nii.gz
+# Set up error handling
+set -euo pipefail
+trap 'clean_exit' EXIT
+trap 'control_c' SIGINT
 
 ###############################################################################
-########## Step 4. Warp segmentation posteriors (from first Atropos   #########
-##########         run) from SST space to native T1w space.           #########
+########################        MAIN: PROCESSING       ########################
 ###############################################################################
-echo -e "\nWarp segmentation posteriors from SST to native space....\n"
-PROGNAME="antsApplyTransforms"
+log_progress "ANTsLongCT v${VERSION}: STARTING UP"
 
-# Get segmentation posteriors from first Atropos run.
-posteriors=`find ${OutDir} -name "${sub}_SegmentationPosteriors*.nii.gz" -not -name "*PreviousIteration*"`
+# Set paths to input/output/subject directories
+InDir=/data/input
+OutDir=/data/output
+SubDir=${OutDir}/subjects/${sub}
 
-# For each session:
-#   1. Warp segmentation posteriors from SST to session space.
-#   2. Run Atropos segmentation on native T1w image.
-for ses in ${sessions}; do
+# Make sure subject directory exists
+if [[ ! -d ${SubDir} ]]; then
+    echo "Error: No directory could be found for subject ${sub}"
+    exit 1
+fi
 
-  # Make session level output directory
-  mkdir ${OutDir}/${ses}
+# Get session list (e.g. ses-PNC1, ses-MOTIVE )
+sessions=`find ${SubDir} -type d -name "ses-*" -exec basename {} \;`
 
-  # Get SST-to-Native warp/affine
-  SST_to_Native_warp=`find ${InDir}/${sub}/${ses}/ -name "*InverseWarp.nii.gz"`
-  Native_to_SST_affine=`find ${InDir}/${sub}/${ses}/ -name "*_desc-preproc_T1w_padscale*Affine.txt"`
-  
-  # Warp each tissue posterior from SST space to native T1w space.
-  for post in ${posteriors}; do
-    warpedname=`echo ${post} | cut -d "/" -f 4 | cut -d "_" -f 2 | cut -d "." -f 1`
-    warpedname=${warpedname}_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz
-    
-    antsApplyTransforms \
-      -d 3 -e 0 -i ${post} \
-      -n Gaussian \
-      -o [${OutDir}/${ses}/${warpedname},0] \
-      -r ${InDir}/${sub}/${ses}/${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz \
-      -t [${Native_to_SST_affine},1] \
-      -t ${SST_to_Native_warp}
-  done
-  
-  # OLD
-  python /scripts/maskPriorsWarpedToSes.py ${sub} ${ses}
-  groupMaskInSes=${OutDir}/${ses}/${sub}_${ses}_priorsMask.nii.gz
+# Run composite warp creation.
+if [[ ${runCompWarps} ]] || [[ ${runAll} ]]; then
+    construct_composite_warps
+fi
 
-  # NEW: Try using (dialated? padded?) native T1w brain mask for priors mask instead of above.
-  maskedT1w="${InDir}/fmriprep/ses-PNC1/anat/${sub}_${ses}_desc-brain_mask.nii.gz"
+# Run Atropos on SST
+if [[ ${runAtroposSST} ]] || [[ ${runAll} ]]; then
+    # First, transform tissue priors to SST space...
+    transform_priors_to_sst
+    # ... then, run Atropos on the SST using warped custom priors.
+    atropos_on_sst
+fi
 
-  # Pad
-  ImageMath 3 ${InDir}/fmriprep/ses-PNC1/anat/${sub}_${ses}_desc-brain_mask_padded.nii.gz PadImage ${maskedT1w} 25
-  # TODO: NEED TO DILATE THIS MASK TOO??
-  # TODO: try BE on t1w pad scale image
+# Run Atropos on Native T1w
+if [[ ${runAtroposNative} ]] || [[ ${runAll} ]]; then
+    # First, transform tissue posteriors from prev Atropos run to native space...
+    transform_posteriors_to_native
+    # ... then, run Atropos on the native T1w image using tissue posteriors as new priors.
+    atropos_on_native
+fi
 
-  # Copy warped posteriors to simpler name for easy submission to Atropos script.
-  cp ${OutDir}/${ses}/SegmentationPosteriors1_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior1.nii.gz
-  cp ${OutDir}/${ses}/SegmentationPosteriors2_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior2.nii.gz
-  cp ${OutDir}/${ses}/SegmentationPosteriors3_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior3.nii.gz
-  cp ${OutDir}/${ses}/SegmentationPosteriors4_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior4.nii.gz
-  cp ${OutDir}/${ses}/SegmentationPosteriors5_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior5.nii.gz
-  cp ${OutDir}/${ses}/SegmentationPosteriors6_Normalizedto_${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz ${OutDir}/${ses}/prior6.nii.gz
-  
-  T1w=${InDir}/${sub}/${ses}/${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz
-  
-  echo -e "\nRunning Atropos segmentation on the native T1w image....\n"
-  PROGNAME="antsAtroposN4"
-  # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
-  # as priors for Atropos on the native T1w image (weight = .5).
-  antsAtroposN4.sh -d 3 -a ${T1w} \
-    -x ${maskedT1w} -c 6 -o ${OutDir}/${ses}/${sub}_${ses}_ -w .5 \
-    -p ${OutDir}/${ses}/prior%d.nii.gz
-  
-  # Delete copied priors.
-  rm ${OutDir}/${ses}/prior*.nii.gz
+# Warp labels to Native T1w space
+if [[ ${runWarpLabels} ]] || [[ ${runAll} ]]; then
+    if [[ ${labelsOnGT} ]]; then
+        warp_gt_labels
+    elif [[]]; then
+        warp_sst_labels
+    else
+        "Error: Please indicate whether JLF was run on the Group Template or the Single Subject Template via the corresponding cmd line arg."
+        exit 1
+    fi
+fi
 
-###############################################################################
-#####  Step 5. Get cortical thickness. Use CorticalGM posterior for GMD.  #####
-###############################################################################
-  echo -e "\nCalculating cortical thickness....\n"
-  PROGNAME="do_antsxnet_thickness.py"
+# Quantify volume, cortical thickness, and GMD in ROIs
+if [[ ${runQuantify} ]] || [[ ${runAll} ]]; then
+    quantify
+fi
 
-  # OLD: Use cortical gray matter posterior as GMD image.
-  gmd="${OutDir}/${ses}/${sub}_${ses}_GMD.nii.gz"
-  cp ${OutDir}/${ses}/${sub}_${ses}_SegmentationPosteriors4.nii.gz ${gmd}
+# Clean up and remove unnecessary files
+if [[ ${runCleanUp ]]; then
+    rm -rf "${OutDir}/priors"
+    rm -rf "${SubDir}/*Segmentation*"
+    rm -rf "${SubDir}/*WarpedTo${projectName}Template*"
+    for ses in $sessions; do
+        rm -rf "${SubDir}/sessions/${ses}/*Composite*"
+        rm -rf "${SubDir}/sessions/${ses}/*WarpedToSST*"
+fi
 
-  # DiReCT to calculate cortical thickness using the segmentation image.
-  segmentation=${OutDir}/${ses}/${sub}_${ses}_Segmentation.nii.gz
-  cp ${segmentation} ${OutDir}/${ses}/${sub}_${ses}_Segmentation_old.nii.gz
-  posteriors=`find ${OutDir}/${ses} -name "${sub}_${ses}_SegmentationPosteriors*.nii.gz" -not -name "*PreviousIteration*"`;
-  python /opt/bin/do_antsxnet_thickness.py -a ${T1w} -s ${segmentation} -p ${posteriors} -o ${OutDir}/${ses}/${sub}_${ses}_ -t 1 ;
+log_progress "ANTsLongCT v${VERSION}: FINISHED SUCCESSFULLY"
 
 ###############################################################################
-######  Step 6. Warp DKT labels from GT space to native T1w space.   ######
-###############################################################################
-  
-  ### Warp DKT labels from the group template space to the T1w space
-  # Calculate the composite inverse warp
-  SST_to_Native_warp=`find ${InDir}/${sub}/${ses}/ -name "*padscale*InverseWarp.nii.gz"`;
-  Native_to_SST_affine=`find ${InDir}/ -name "${sub}_${ses}_desc-preproc_T1w_padscale*Affine.txt"`;
-  GT_to_SST_warp=`find ${OutDir} -name "${sub}_NormalizedtoExtraLongTemplate_*InverseWarp.nii.gz"`;
-  antsApplyTransforms \
-    -d 3 \
-    -e 0 \
-    -o [${OutDir}/${ses}/${sub}_${ses}_Normalizedto${projectName}TemplateCompositeInverseWarp.nii.gz, 1] \
-    -r ${TemplateDir}/${projectName}Template_template0.nii.gz \ # TODO: should be t1w image! 
-    -t [${Native_to_SST_affine}, 1] \
-    -t ${SST_to_Native_warp} \
-    -t [${SST_to_GT_affine}, 1] \
-    -t ${GT_to_SST_warp}
-
-  # Transform labels from group template to T1w space
-  antsApplyTransforms \
-    -d 3 -e 0 -n Multilabel \
-    -i ${TemplateDir}/${projectName}Template_malfLabels.nii.gz \
-    -o [${OutDir}/${ses}/${sub}_${ses}_DKT.nii.gz, 0] \
-    -r ${t1w} \
-    -t ${OutDir}/${ses}/${sub}_${ses}_Normalizedto${projectName}TemplateCompositeInverseWarp.nii.gz
-
-  # QC: How well does this overlap with subject's gray matter 
-
-  # 6/19/2021: 
-  # Warp DKT labels from the SST space to Native T1w space
-  # RefImg=${InDir}/${sub}/${ses}/${sub}_${ses}_desc-preproc_T1w_padscale.nii.gz
-  # SSTLabels=${InDir}/${sub}/${sub}_malfLabels.nii.gz
-  # SST_to_Native_warp=`find ${InDir}/${sub}/${ses} -name "*padscale*InverseWarp.nii.gz"`
-  # Native_to_SST_affine=`find ${InDir}/${sub}/${ses} -name "*Affine.txt"`
-
-  # # Transform labels from SST to T1w space
-  # # Multilabel interpolation for labeled image to maintain integer labels!
-  # antsApplyTransforms \
-  #   -d 3 -e 0 -n Multilabel \
-  #   -i ${SSTLabels} \
-  #   -o [${OutDir}/${ses}/${sub}_${ses}_DKT_new.nii.gz, 0] \
-  #   -r ${RefImg} \
-  #   -t [${Native_to_SST_affine}, 1] \
-  #   -t ${SST_to_Native_warp} 
-
-###############################################################################
-######  Step 7. Quantify regional values.                                ######
+######  OLD: Step 8. Clean up.                                           ######
 ###############################################################################
 
-  ### Quantify regional values
-  # Get mask from the cortical thickness image.
-  #ImageMath 3 ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness_mask.nii.gz TruncateImageIntensity ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz binary-maskImage
-  python /scripts/maskCT.py ${sub} ${ses} ${subLabel}
-  
-  # Take intersection of CT mask and the DKT label image to get labels that conform to gray matter.
-  ct="${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz"
-  mask="${OutDir}/${ses}/${sub}_${ses}_CorticalThickness_mask.nii.gz"
-  dkt="${OutDir}/${ses}/${sub}_${ses}_DKT_new.nii.gz"
-  intersection="${OutDir}/${ses}/${sub}_${ses}_DKTIntersection_new.nii.gz"
-  ImageMath 3 ${intersection} m ${dkt} ${mask}
-  
-  #ImageMath 3 LabelStats ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz ${OutDir}/${ses}/${sub}_${ses}_DKT.nii.gz
-  python /scripts/quantifyROIs.py ${intersection} ${ct} ${gmd}
+# # Remove unnecessary files (full output way too big)
+# rm ${OutDir}/${ses}/*_CorticalThickness_mask.nii.gz
+# rm ${OutDir}/${ses}/*_priorsMask.nii.gz
+# rm ${OutDir}/${ses}/*Segmentation*
 
-###############################################################################
-######  Step 8. Clean up.                                                ######
-###############################################################################
-
-  # Move files to session directories
-  mv ${OutDir}/*${ses}*.nii.gz ${OutDir}/${ses}
-  #mv ${OutDir}/*${ses}*.txt ${OutDir}/${ses}
-  
-  # Remove unnecessary files (full output way too big)
-  rm ${OutDir}/${ses}/*_CorticalThickness_mask.nii.gz
-  rm ${OutDir}/${ses}/*_priorsMask.nii.gz
-  rm ${OutDir}/${ses}/*Segmentation*
-done
-
-# Remove unnecessary files
-rm ${OutDir}/*Prior*
-rm ${OutDir}/*Segmentation*
-rm ${OutDir}/*_Normalizedto${projectName}Template_*
-rm ${OutDir}/*_priorsMask.nii.gz
-
-
-### GMD: https://github.com/PennBBL/xcpEngine/blob/master/modules/gmd/gmd.mod
+# # Remove unnecessary files
+# rm ${OutDir}/*Prior*
+# rm ${OutDir}/*Segmentation*
+# rm ${OutDir}/*_Normalizedto${projectName}Template_*
+# rm ${OutDir}/*_priorsMask.nii.gz
+ 
