@@ -58,19 +58,22 @@ LABEL maintainer="Philip A Cook (https://github.com/cookpa)" \
 RUN mkdir /data
 RUN mkdir /data/input
 RUN mkdir /data/output
+RUN mkdir /data/input/atlases
+
 RUN mkdir /scripts
 
-COPY run.sh /scripts/run.sh
 COPY OASIS_PAC /data/input/OASIS_PAC
+COPY mindboggleCorticalLabels.csv /data/input/atlases/mindboggleCorticalLabels.csv
+
+COPY run.sh /scripts/run.sh
 COPY maskPriorsWarpedToSST.py /scripts/maskPriorsWarpedToSST.py
 COPY maskPriorsWarpedToSes.py /scripts/maskPriorsWarpedToSes.py
 COPY quantifyROIs.py /scripts/quantifyROIs.py
 COPY maskCT.py /scripts/maskCT.py
+
 RUN chmod +x /scripts/*
 
 #COPY mindboggle /scripts/mindboggle
-
-COPY mindboggleCorticalLabels.csv /data/input/mindboggleCorticalLabels.csv
-
+ 
 # Set the entrypoint using exec format
 ENTRYPOINT ["/scripts/run.sh"]
