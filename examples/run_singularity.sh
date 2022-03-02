@@ -14,7 +14,7 @@ antslong_dir=${data}/ANTsLongitudinal
 
 include_csv=${data}/QC/sessions_for_inclusion.csv
 subList=$(cat ${include_csv} | cut -d , -f 1 | uniq)
-echo "ANTsSST will be run on $(echo $subList | wc -w) subjects"
+echo "ANTsLongCT will be run on $(echo $subList | wc -w) subjects"
 
 for subject in $subList; do
 
