@@ -51,7 +51,6 @@ clean_exit() {
         cleanup
     else
         echo "$0: ${PROGNAME:-}: ${1:-"Exiting with error code $err"}" 1>&2
-        cleanup
     fi
     exit $err
 }
