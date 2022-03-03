@@ -581,7 +581,7 @@ export PATH=${ANTSPATH}:$PATH
 export LD_LIBRARY_PATH=/opt/ants/lib
 
 # Make tmp dir
-tmpdir="/data/output/tmp"
+tmpdir="/data/output/tmp/${sub}"
 mkdir -p ${tmpdir}
 
 # Set up error handling
