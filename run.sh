@@ -277,12 +277,12 @@ atropos_on_native() {
         # TODO: try BE on t1w pad scale
 
         # Copy warped posteriors to simpler name for easy submission to Atropos script.
-        cp ${tmpdir}/sub-*_SegmentationPosteriors1_*.nii.gz ${tmpdir}/prior1.nii.gz
-        cp ${tmpdir}/sub-*_SegmentationPosteriors2_*.nii.gz ${tmpdir}/prior2.nii.gz
-        cp ${tmpdir}/sub-*_SegmentationPosteriors3_*.nii.gz ${tmpdir}/prior3.nii.gz
-        cp ${tmpdir}/sub-*_SegmentationPosteriors4_*.nii.gz ${tmpdir}/prior4.nii.gz
-        cp ${tmpdir}/sub-*_SegmentationPosteriors5_*.nii.gz ${tmpdir}/prior5.nii.gz
-        cp ${tmpdir}/sub-*_SegmentationPosteriors6_*.nii.gz ${tmpdir}/prior6.nii.gz
+        cp ${tmpdir}/${sub}_SegmentationPosteriors1_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior1.nii.gz
+        cp ${tmpdir}/${sub}_SegmentationPosteriors2_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior2.nii.gz
+        cp ${tmpdir}/${sub}_SegmentationPosteriors3_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior3.nii.gz
+        cp ${tmpdir}/${sub}_SegmentationPosteriors4_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior4.nii.gz
+        cp ${tmpdir}/${sub}_SegmentationPosteriors5_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior5.nii.gz
+        cp ${tmpdir}/${sub}_SegmentationPosteriors6_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior6.nii.gz
 
         # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
         # as priors for Atropos on the native T1w image (weight = .5).
