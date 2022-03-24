@@ -267,7 +267,7 @@ atropos_on_native() {
         # NEW:
         # Try using (dialated? padded?) native T1w brain mask for priors mask instead of above.
         # maskedT1w="${InDir}/fmriprep/${ses}/anat/${sub}_${ses}_desc-brain_mask.nii.gz"
-        t1w_mask="${SesDir}/${sub}_${ses}_Brain-mask.nii.gz"
+        t1w_mask="${SesDir}/${sub}_${ses}_brain-mask.nii.gz"
 
         # Get Native T1w image
         t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
