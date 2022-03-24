@@ -1,8 +1,7 @@
 ############################
 # Get ANTs from DockerHub
 # February 18, 2021: DON'T HAVE ACCESS TO BINARIES
-FROM pennbbl/ants:0.0.1 as antsbinaries
-ENV ANTs_VERSION 0.0.1
+FROM antsx/ants:latest
 
 # Pick a specific version, once they starting versioning
 #FROM cookpa/antspynet:latest
