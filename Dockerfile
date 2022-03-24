@@ -1,7 +1,8 @@
 ############################
 # Get ANTs from DockerHub
 # February 18, 2021: DON'T HAVE ACCESS TO BINARIES
-FROM antsx/ants:latest
+FROM pennbbl/ants:0.0.1 as antsbinaries
+ENV ANTs_VERSION 0.0.1
 
 # Pick a specific version, once they starting versioning
 #FROM cookpa/antspynet:latest
@@ -16,6 +17,7 @@ RUN apt-get update && \
     apt-get install -y cmake=3.13.4-1 && \
     python3 -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
+    bc \
     pip install wheel && \
     pip install --use-feature=2020-resolver --requirement /opt/requirements.txt && \
     pip install --use-feature=2020-resolver git+https://github.com/ANTsX/ANTsPyNet.git@5f64287e693ff15b3588233b13eb065307a846e2 && \
