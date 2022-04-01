@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y \
 
 FROM python:3.8.6-slim
 
+RUN apt-get update && apt-get install -y bc
+
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=antsbinaries /opt/ants /opt/ants
 
