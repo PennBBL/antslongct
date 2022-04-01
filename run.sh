@@ -647,7 +647,7 @@ if [[ ${runQuantify} ]] || [[ ${runAll} ]]; then
 fi
 
 # Clean up and remove unnecessary files
-if [[ ${runCleanUp ]]; then
+if [[ ${runCleanUp} ]]; then
     delete_if_exists "${OutDir}/priors"
     delete_if_exists "${SubDir}/*Segmentation*"
     delete_if_exists "${SubDir}/*WarpedTo${projectName}Template*"
