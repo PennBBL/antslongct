@@ -633,7 +633,7 @@ fi
 if [[ ${runWarpLabels} ]] || [[ ${runAll} ]]; then
     if [[ ${labelsOnGT} ]]; then
         warp_gt_labels
-    elif [[]]; then
+    elif [[ ${labelsOnSST} ]]; then
         warp_sst_labels
     else
         "Error: Please indicate whether JLF was run on the Group Template or the Single Subject Template via the corresponding cmd line arg."
