@@ -654,6 +654,7 @@ if [[ ${runCleanUp} ]]; then
     for ses in $sessions; do
         delete_if_exists "${SubDir}/sessions/${ses}/*Composite*"
         delete_if_exists "${SubDir}/sessions/${ses}/*WarpedToSST*"
+    done
 fi
 
 log_progress "ANTsLongCT v${VERSION}: FINISHED SUCCESSFULLY"
