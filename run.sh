@@ -284,15 +284,16 @@ atropos_on_native() {
         cp ${tmpdir}/${sub}_SegmentationPosteriors5_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior5.nii.gz
         cp ${tmpdir}/${sub}_SegmentationPosteriors6_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior6.nii.gz
 
-	# Fix precision issue 
-	CopyImageHeaderInformation ${t1w} ${t1w_mask} ${t1w_mask} 0 1 0 	
+	    # Fix precision issue 
+	    SetOrigin 3 ${t1w} ${t1w} .93750000 .93750000 1.0000000
+	    SetOrigin 3 ${t1w_mask} ${t1w_mask} .93750000 .93750000 1.0000000	
 
         # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
-        # as priors for Atropos on the native T1w image (weight = .5).
+        # as priors for Atropos on the native T1w image (weight = .25).
         antsAtroposN4.sh \
             -d 3 \
             -c 6 \
-            -w .5 \
+            -w .25 \
             -a ${t1w} \
             -x ${t1w_mask} \
             -o ${SesDir}/atropos/${sub}_${ses}_ \
