@@ -158,8 +158,8 @@ transform_priors_to_sst() {
             -n Gaussian \
             -o [${PriorsDir}/${tissue}Prior_WarpedTo_${sub}_template.nii.gz, 0] \
             -r ${SST} \
-            -t ${GT_to_SST_warp} \
-            -t [${SST_to_GT_affine},1]
+            -t [${SST_to_GT_affine},1]\
+            -t ${GT_to_SST_warp} 
     done
 
     log_progress "END: Finished transforming priors from GT to SST space."
@@ -239,8 +239,8 @@ transform_posteriors_to_native() {
                 -i ${posterior} \
                 -o [${posterior_warped}, 0] \
                 -r ${t1w} \
-                -t ${SST_to_Native_warp} \
-                -t [${Native_to_SST_affine},1]
+                -t [${Native_to_SST_affine},1]\
+                -t ${SST_to_Native_warp} 
         done
 
     done
@@ -285,8 +285,7 @@ atropos_on_native() {
         cp ${tmpdir}/${sub}_SegmentationPosteriors6_WarpedToNative_${ses}.nii.gz ${tmpdir}/prior6.nii.gz
 
 	    # Fix precision issue 
-	    SetOrigin 3 ${t1w} ${t1w} .93750000 .93750000 1.0000000
-	    SetOrigin 3 ${t1w_mask} ${t1w_mask} .93750000 .93750000 1.0000000	
+	    CopyImageHeaderInformation ${t1w} ${t1w_mask} ${t1w_mask} 0 1 0 	
 
         # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
         # as priors for Atropos on the native T1w image (weight = .25).
@@ -345,10 +344,10 @@ warp_gt_labels() {
             -e 0 \
             -o [${GT_to_Native_warp}, 1] \
             -r ${t1w} \
-            -t ${SST_to_Native_warp} \
-            -t [${Native_to_SST_affine}, 1] \
-            -t ${GT_to_SST_warp} \
-            -t [${SST_to_GT_affine}, 1]
+            -t [${Native_to_SST_affine}, 1]\
+            -t ${SST_to_Native_warp}  \
+            -t [${SST_to_GT_affine}, 1] \
+            -t ${GT_to_SST_warp} 
 
         # Get DKT-labeled GT image
         GT_labels="${OutDir}/${projectName}Template_DKT.nii.gz"
@@ -399,8 +398,8 @@ warp_sst_labels() {
             -i ${SST_labels} \
             -o [${Native_labels}, 0] \
             -r ${t1w} \
-            -t ${SST_to_Native_warp} \
-            -t [${Native_to_SST_affine}, 1]
+            -t [${Native_to_SST_affine}, 1] \
+            -t ${SST_to_Native_warp} 
 
     done
 
