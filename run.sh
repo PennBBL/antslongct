@@ -21,7 +21,6 @@ usage() {
 		      
 		      positional arguments:
 		        SUB |                 Subject label
-
 		      optional arguments:
 		      -h  | --help            Print this message and exit.
 		      -g  | --jlf-on-gt       Set if JLF was run on GT. (Default: False)
@@ -37,7 +36,6 @@ usage() {
 		      -s  | --seed            Random seed for ANTs registration.
               -x  | --cleanup         Delete unnecessary output files when finished.
 		      -v  | --version         Print version and exit.
-
 	HELP_MESSAGE
 }
 
