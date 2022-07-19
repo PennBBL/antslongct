@@ -4,9 +4,8 @@ import argparse
 import sys
 import nibabel as nib
 import numpy as np
+import os
 
-import os.path
-from os import path
 
 import tensorflow as tf
 
@@ -47,18 +46,18 @@ tf.compat.v1.keras.backend.set_session(session)
 t1 = ants.image_read(t1_file)
 
 # Recode values in segmentation image to match ANTs default
-seg_img = nib.load(segmentation)
-seg_array = seg_img.get_fdata()
-seg_array = seg_array + 10
-seg_array[seg_array == 10] = 0
-seg_array[seg_array == 11] = 5
-seg_array[seg_array == 12] = 1
-seg_array[seg_array == 13] = 6
-seg_array[seg_array == 14] = 2
-seg_array[seg_array == 15] = 4
-seg_array[seg_array == 16] = 3
-seg_img = nib.Nifti1Image(seg_array, affine=seg_img.affine)
-seg_img.to_filename(segmentation)
+# seg_img = nib.load(segmentation)
+# seg_array = seg_img.get_fdata()
+# seg_array = seg_array + 10
+# seg_array[seg_array == 10] = 0
+# seg_array[seg_array == 11] = 5
+# seg_array[seg_array == 12] = 1
+# seg_array[seg_array == 13] = 6
+# seg_array[seg_array == 14] = 2
+# seg_array[seg_array == 15] = 4
+# seg_array[seg_array == 16] = 3
+# seg_img = nib.Nifti1Image(seg_array, affine=seg_img.affine)
+# seg_img.to_filename(segmentation)
 
 # Read in the recoded segmentation image
 atropos_segmentation = ants.image_read(segmentation)
@@ -66,6 +65,7 @@ atropos_segmentation = ants.image_read(segmentation)
 print("KellyKapowski")
 
 kk_file = output_prefix + "CorticalThickness.nii.gz"
+
 #kk = None
 #if not path.exists(kk_file):
     #print("    Atropos:  calculating\n")
