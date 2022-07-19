@@ -180,12 +180,12 @@ atropos_on_sst() {
     maskedSST="${SubDir}/${sub}_BrainExtractionMask.nii.gz"
 
     # Copy priors to simpler name for easy submission to Atropos script.
-    cp ${SubDir}/priors/BrainstemPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior1.nii.gz
-    cp ${SubDir}/priors/CSFPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior2.nii.gz
-    cp ${SubDir}/priors/CerebellumPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior3.nii.gz
-    cp ${SubDir}/priors/GMCorticalPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior4.nii.gz
-    cp ${SubDir}/priors/GMDeepPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior5.nii.gz
-    cp ${SubDir}/priors/WMCorticalPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior6.nii.gz
+    cp ${SubDir}/priors/CSFPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior1.nii.gz
+    cp ${SubDir}/priors/GMCorticalPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior2.nii.gz
+    cp ${SubDir}/priors/WMCorticalPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior3.nii.gz
+    cp ${SubDir}/priors/GMDeepPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior4.nii.gz
+    cp ${SubDir}/priors/BrainstemPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior5.nii.gz
+    cp ${SubDir}/priors/CerebellumPrior_WarpedTo_${sub}_template.nii.gz ${tmpdir}/prior6.nii.gz
 
     # Run Atropos on SST, using custom priors (weight = .25)
     antsAtroposN4.sh \
@@ -300,12 +300,12 @@ atropos_on_native() {
         rm ${tmpdir}/prior*.nii.gz
 
         prefix="${SesDir}/atropos/${sub}_${ses}"
-        mv "${prefix}_SegmentationPosteriors1.nii.gz" "${prefix}_Segmentation-Brainstem.nii.gz" 
-        mv "${prefix}_SegmentationPosteriors2.nii.gz" "${prefix}_Segmentation-CSF.nii.gz" 
-        mv "${prefix}_SegmentationPosteriors3.nii.gz" "${prefix}_Segmentation-Cerebellum.nii.gz" 
-        mv "${prefix}_SegmentationPosteriors4.nii.gz" "${prefix}_Segmentation-GMCortical.nii.gz" 
-        mv "${prefix}_SegmentationPosteriors5.nii.gz" "${prefix}_Segmentation-GMDeep.nii.gz"
-        mv "${prefix}_SegmentationPosteriors6.nii.gz" "${prefix}_Segmentation-WMCortical.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors1.nii.gz" "${prefix}_Segmentation-CSF.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors2.nii.gz" "${prefix}_Segmentation-GMCortical.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors3.nii.gz" "${prefix}_Segmentation-WMCortical.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors4.nii.gz" "${prefix}_Segmentation-GMDeep.nii.gz" 
+        mv "${prefix}_SegmentationPosteriors5.nii.gz" "${prefix}_Segmentation-Brainstem.nii.gz"
+        mv "${prefix}_SegmentationPosteriors6.nii.gz" "${prefix}_Segmentation-Cerebellum.nii.gz" 
 
     done
     
@@ -435,16 +435,15 @@ quantify() {
             -o ${SesDir}/${sub}_${ses}_ \
             -t 1
 
-        # Get cortical thickness mask.
-        # ImageMath 3 ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness_mask.nii.gz TruncateImageIntensity ${OutDir}/${ses}/${sub}_${ses}_CorticalThickness.nii.gz binary-maskImage
-        python /scripts/maskCT.py ${sub} ${ses}
-
         # Take intersection of CT mask and the DKT label image to get labels that conform to gray matter voxels.
         ct="${SesDir}/${sub}_${ses}_CorticalThickness.nii.gz"
         mask="${SesDir}/${sub}_${ses}_CorticalThickness-mask.nii.gz"
         dkt="${SesDir}/${sub}_${ses}_DKT.nii.gz"
         intersection="${SesDir}/${sub}_${ses}_CT-DKT-Intersection.nii.gz"
-        ImageMath 3 ${intersection} m ${dkt} ${mask}
+       
+        ThresholdImage 3 ${ct} ${mask} 0.001 Inf
+        ImageMath 3 ${mask} GetLargestComponent ${mask}
+        ImageMath 3 ${dkt} PropagateLabelsThroughMask ${mask} ${intersection} 10
 
         # Get GMD image.
         # TODO: Talk to Stathis r.e. GMD calculations
