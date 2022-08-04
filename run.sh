@@ -286,11 +286,11 @@ atropos_on_native() {
 	    CopyImageHeaderInformation ${t1w} ${t1w_mask} ${t1w_mask} 0 1 0 	
 
         # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
-        # as priors for Atropos on the native T1w image (weight = .25).
+        # as priors for Atropos on the native T1w image (weight = .5).
         antsAtroposN4.sh \
             -d 3 \
             -c 6 \
-            -w .25 \
+            -w .5 \
             -a ${t1w} \
             -x ${t1w_mask} \
             -o ${SesDir}/atropos/${sub}_${ses}_ \
