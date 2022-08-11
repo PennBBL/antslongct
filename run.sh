@@ -286,11 +286,11 @@ atropos_on_native() {
 	    CopyImageHeaderInformation ${t1w} ${t1w_mask} ${t1w_mask} 0 1 0 	
 
         # Atropos segmentation on native T1w image. Uses posteriors from Atropos on SST
-        # as priors for Atropos on the native T1w image (weight = .5).
+        # as priors for Atropos on the native T1w image (weight = .25).
         antsAtroposN4.sh \
             -d 3 \
             -c 6 \
-            -w .5 \
+            -w .25 \
             -a ${t1w} \
             -x ${t1w_mask} \
             -o ${SesDir}/atropos/${sub}_${ses}_ \
@@ -416,12 +416,12 @@ quantify() {
 
         # Copy posteriors name format required by do_antsxnet_thickness.py
         prefix="${SesDir}/atropos/${sub}_${ses}"
-        cp  "${prefix}_Segmentation-Brainstem.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors1.nii.gz"
-        cp  "${prefix}_Segmentation-CSF.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors2.nii.gz" 
-        cp  "${prefix}_Segmentation-Cerebellum.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors3.nii.gz"
-        cp  "${prefix}_Segmentation-GMCortical.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors4.nii.gz"
-        cp  "${prefix}_Segmentation-GMDeep.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors5.nii.gz"
-        cp  "${prefix}_Segmentation-WMCortical.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors6.nii.gz"
+        cp  "${prefix}_Segmentation-CSF.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors1.nii.gz"
+        cp  "${prefix}_Segmentation-GMCortical.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors2.nii.gz" 
+        cp  "${prefix}_Segmentation-WMCortical.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors3.nii.gz"
+        cp  "${prefix}_Segmentation-GMDeep.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors4.nii.gz"
+        cp  "${prefix}_Segmentation-Brainstem.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors5.nii.gz"
+        cp  "${prefix}_Segmentation-Cerebellum.nii.gz" "${tmpdir}/${sub}_${ses}_SegmentationPosteriors6.nii.gz"
         
         # Calculate cortical thickness using the segmentation image via DiReCT.
         t1w=$(find ${SesDir} -name ${sub}_${ses}_T1w.nii.gz)
@@ -443,7 +443,7 @@ quantify() {
        
         ThresholdImage 3 ${ct} ${mask} 0.001 Inf
         ImageMath 3 ${mask} GetLargestComponent ${mask}
-        ImageMath 3 ${dkt} PropagateLabelsThroughMask ${mask} ${intersection} 10
+        ImageMath 3 ${intersection} PropagateLabelsThroughMask ${mask} ${dkt} 10
 
         # Get GMD image.
         # TODO: Talk to Stathis r.e. GMD calculations

@@ -76,10 +76,10 @@ kk_segmentation = atropos_segmentation # Combine white matter and deep gray matt
     #kk_segmentation[kk_segmentation == 4] = 3 # Combine white matter and deep gray matter #TO DO: CHECK THESE VALUES SAME FOR MY IMAGE
 kk_segmentation[kk_segmentation == 4] = 3
     #kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
-wm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors6.nii.gz' in s][0])
-dgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors5.nii.gz' in s][0])
+wm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors3.nii.gz' in s][0])
+dgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors4.nii.gz' in s][0])
 kk_white_matter = wm_prob + dgm_prob
-cgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors4.nii.gz' in s][0])
+cgm_prob = ants.image_read([s for s in posteriors if '_SegmentationPosteriors2.nii.gz' in s][0])
     #kk_white_matter = atropos['probability_images'][3] + atropos['probability_images'][4]
 print("    KellyKapowski:  calculating\n")
 kk = ants.kelly_kapowski(s=kk_segmentation, g=cgm_prob, w=kk_white_matter,
