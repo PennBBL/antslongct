@@ -9,22 +9,28 @@ ENV ANTs_VERSION 0.0.1
 
 ############################
 # Install ANTsPyNet
-FROM python:3.8.6-buster as builder
+FROM python:3.8.12-buster as builder
 
 COPY requirements.txt /opt
 
-RUN apt-get update && apt-get install -y \
-    cmake=3.13.4-1 \
-    bc && \
-    python3 -m venv /opt/venv && \
-    . /opt/venv/bin/activate && \
+# ANTsPy just used to get the data directory from its source zip
+ARG ANTSPY_DATA_VERSION=0.3.2
+
+ENV VIRTUAL_ENV=/opt/venv
+
+RUN apt-get update && \
+    python3 -m venv ${VIRTUAL_ENV} && \
+    . ${VIRTUAL_ENV}/bin/activate && \
     pip install wheel && \
-    pip install --use-feature=2020-resolver --requirement /opt/requirements.txt && \
-    pip install --use-feature=2020-resolver git+https://github.com/ANTsX/ANTsPyNet.git@5f64287e693ff15b3588233b13eb065307a846e2 && \
-    git clone https://github.com/ANTsX/ANTsPy.git /opt/ANTsPy
+    pip install nilearn && \
+    pip install --requirement /opt/requirements.txt && \
+    pip install antspynet==0.1.8 && \
+    wget -O /opt/antsPy-${ANTSPY_DATA_VERSION}.zip \
+      https://github.com/ANTsX/ANTsPy/archive/refs/tags/v${ANTSPY_DATA_VERSION}.zip && \
+    unzip /opt/antsPy-${ANTSPY_DATA_VERSION}.zip -d /opt/ANTsPy && \
+    cp -r /opt/ANTsPy/ANTsPy-${ANTSPY_DATA_VERSION}/data /opt/antspydata
 
-
-FROM python:3.8.6-slim
+FROM python:3.8.12-slim-buster
 
 RUN apt-get update && apt-get install -y bc
 
@@ -45,9 +51,13 @@ RUN mkdir /opt/dataCache /opt/bin
 
 # Copy script
 COPY do_antsxnet_thickness.py /opt/bin
+COPY get_DKT_labels.py /opt/bin
 
 # Copy data required by the cortical thickness pipeline
 COPY ANTsXNetData /opt/dataCache/ANTsXNet
+
+# Overwrite DKT labelling script so that it works with pre-downloaded data
+COPY desikan_killiany_tourville_labeling.py /opt/venv/lib/python3.8/site-packages/antspynet/utilities/desikan_killiany_tourville_labeling.py
 
 LABEL maintainer="Philip A Cook (https://github.com/cookpa)" \
       description="Cortical thickness script by Nick Tustison. \
